@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5715db3eb0e634ed288e874d910de426, type: 3}
+  m_Name: EnemyData
+  m_EditorClassIdentifier: 
+  sightRadius: 15
+  viewAngle: 90
+  audioRadius: 20
+  wanderSpeed: 2
+  chaseSpeed: 4.5
+  attackRange: 1.6
+  attackCooldown: 1.2
+  damage: 10
+  interestIncreaseRate: 1
+  interestDecayRate: 0.2
+  maxInterest: 1
