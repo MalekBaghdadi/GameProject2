@@ -5,7 +5,7 @@ public class EnemyData : ScriptableObject
 {
     public float sightRadius = 15f;
     public float viewAngle = 90f;
-    public float audioRadius = 8f;
+    public float audioRadius = 1f;
 
     public float wanderSpeed = 2f;
     public float chaseSpeed = 4.5f;

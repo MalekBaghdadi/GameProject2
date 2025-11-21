@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sightRadius: 15
   viewAngle: 90
-  audioRadius: 20
+  audioRadius: 18
   wanderSpeed: 2
   chaseSpeed: 4.5
   attackRange: 1.6
   attackCooldown: 1.2
   damage: 10
-  interestIncreaseRate: 1
-  interestDecayRate: 0.2
+  interestIncreaseRate: 0.5
+  interestDecayRate: 0.02
   maxInterest: 1
