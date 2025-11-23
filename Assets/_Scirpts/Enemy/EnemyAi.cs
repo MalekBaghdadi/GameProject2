@@ -60,6 +60,7 @@ public class EnemyAI : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
+        // Get the player position safely
         player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
         if (data != null)
@@ -337,15 +338,11 @@ public class EnemyAI : MonoBehaviour
         // Apply damage if still in range
         if (Vector3.Distance(transform.position, player.position) <= data.attackRange + 0.25f)
         {
-            PlayerHealth ph = player.GetComponent<PlayerHealth>();
-            if (ph != null)
-            {
-                ph.TakeDamage(data.damage);
-            }
-            else
-            {
-                Debug.LogWarning("PlayerHealth component missing on Player.");
-            }
+            // --- MODIFIED SECTION ---
+            // Instead of looking for PlayerHealth, we trigger the EventManager event
+            // that the PlayerController is listening for.
+            // Payload: [0] Attacker Transform, [1] Damage Amount
+            EventManager.TriggerEvent(EventManager.ON_BEAR_ATTACK, transform, data.damage);
         }
 
         // finish attack animation time
@@ -493,13 +490,6 @@ public class EnemyAI : MonoBehaviour
             Gizmos.color = Color.blue;
             Gizmos.DrawSphere(lastKnownPosition, 0.25f);
             Gizmos.DrawWireSphere(lastKnownPosition, searchRadius);
-        }
-
-        // Raycast line (play mode)
-        if (Application.isPlaying && player != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(origin + Vector3.up, player.position + Vector3.up);
         }
     }
     #endregion

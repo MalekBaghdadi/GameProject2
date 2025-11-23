@@ -226,7 +226,15 @@ public class PlayerController : MonoBehaviour
     /// <param name="data">Payload: [0] Transform attackerTransform (Optional)</param>
     private void OnBearAttack(object[] data)
     {
+        // Default damage if not provided
         int damage = 10; 
+
+        // Check if we received the damage amount in the event payload
+        if (data != null && data.Length > 1 && data[1] is int damageAmount)
+        {
+            damage = damageAmount;
+        }
+
         TakeDamage(damage);
     }
     
