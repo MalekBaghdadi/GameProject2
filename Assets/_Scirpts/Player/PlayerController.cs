@@ -1,0 +1,242 @@
+using UnityEngine;
+using System;
+
+[RequireComponent(typeof(CharacterController))]
+public class PlayerController : MonoBehaviour
+{
+    #region DataFields
+    // --- SCRIPTABLE OBJECT REFERENCES ---
+    [Tooltip("The Scriptable Object containing all player stats (Health, Speed, Stamina)")]
+    [SerializeField] private PlayerStatsSO playerStats;
+    
+    // --- MOVEMENT SMOOTHING ---
+    [Header("Movement Smoothing")]
+    [Tooltip("The rate at which the character accelerates/decelerates (higher = faster response).")]
+    [Range(1f, 10f)]
+    public float moveSmoothTime = 5f;
+
+    // --- CAMERA REFERENCES ---
+    [Header("First-Person View")]
+    [Tooltip("The camera component that rotates vertically.")]
+    [SerializeField] private Transform playerCamera;
+    public float mouseSensitivityX = 2.0f;
+    public float mouseSensitivityY = 2.0f;
+    public float verticalLookLimit = 85.0f;
+    
+    [Header("View Bob Settings")]
+    public float bobAmplitude = 0.05f;
+    public float bobFrequency = 12.0f;
+
+    // --- COMPONENTS ---
+    private CharacterController characterController;
+    private StaminaController staminaController;
+    
+    // --- MOVEMENT STATE ---
+    private Vector3 currentVelocity; // The velocity applied to the character controller
+    private Vector3 currentVelocitySmooth; // Reference for SmoothDamp to track velocity change
+    private Vector3 externalGravityVector; // Separated for clear gravity application
+
+    // --- INPUT VARIABLES (set by PlayerInput.cs) ---
+    private Vector2 currentInput;
+    private bool isSprinting;
+
+    // --- VIEW STATE ---
+    private float verticalRotation = 0f; // Stores vertical camera rotation
+    private float bobTimer = 0.0f;
+    private Vector3 cameraStartLocalPos;
+    private float currentHorizontalSpeed; // Used for view bob calculations
+
+    // --- CONSTANTS ---
+    private const float Gravity = -9.81f * 3f; // Faster gravity for CC feel
+    private const float GroundedGravity = -0.5f; // Ensures CharacterController remains grounded
+    
+
+    #endregion
+ 
+
+    private void Awake()
+    {
+        characterController = GetComponent<CharacterController>();
+        staminaController = GetComponent<StaminaController>();
+
+        // Ensure components are present
+        if (staminaController == null || playerCamera == null)
+        {
+            // Note: This error is expected if StaminaController is not yet attached to the GameObject.
+            Debug.LogError("PlayerController is missing required component(s): StaminaController or PlayerCamera.");
+        }
+        
+        playerStats.Initialize();
+        
+        // Initialize camera view settings
+        if (playerCamera != null)
+        {
+            cameraStartLocalPos = playerCamera.localPosition;
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    private void OnEnable()
+    {
+        // Subscribe to relevant events
+        EventManager.Subscribe(EventManager.ON_BEAR_ATTACK, OnBearAttack);
+        // Persistence events (ON_GAME_LOADED, ON_REQUEST_SAVE) removed.
+    }
+
+    private void OnDisable()
+    {
+        // Unsubscribe from events
+        EventManager.Unsubscribe(EventManager.ON_BEAR_ATTACK, OnBearAttack);
+        // Persistence events (ON_GAME_LOADED, ON_REQUEST_SAVE) removed.
+    }
+    
+    private void Update()
+    {
+        HandleCameraLook();
+        HandleMovement();
+        HandleGravity();
+        HandleViewBob(); 
+    }
+
+    // --- MOVEMENT LOGIC (Executed in Update) ---
+
+    private void HandleMovement()
+    {
+        // --- 1. Calculate Target Velocity ---
+        
+        float speed = playerStats.BaseMovementSpeed;
+        float sprintMultiplier = 1f;
+
+        // Check if sprinting is possible and requested
+        if (isSprinting && staminaController != null && staminaController.CanSprint())
+        {
+            sprintMultiplier = playerStats.SprintMultiplier;
+            staminaController.ConsumeStamina(); // Delegation to StaminaController
+        }
+
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+
+        // Calculate the desired direction based on input
+        Vector3 desiredDirection = forward * currentInput.y + right * currentInput.x;
+        
+        // Set the target speed based on the determined state
+        float targetSpeed = desiredDirection.magnitude > 0 ? speed * sprintMultiplier : 0f;
+        
+        // Final desired velocity vector
+        Vector3 targetVelocity = desiredDirection.normalized * targetSpeed;
+
+        // --- 2. Apply Smoothing ---
+
+        // Use Vector3.SmoothDamp for high-quality acceleration/deceleration
+        currentVelocity.x = Mathf.SmoothDamp(currentVelocity.x, targetVelocity.x, ref currentVelocitySmooth.x, 1f / moveSmoothTime);
+        currentVelocity.z = Mathf.SmoothDamp(currentVelocity.z, targetVelocity.z, ref currentVelocitySmooth.z, 1f / moveSmoothTime);
+        
+        // --- 3. Move the Character (Horizontal Movement only) ---
+        // Combine horizontal movement with the Y velocity (from HandleGravity)
+        Vector3 finalMoveVector = new Vector3(currentVelocity.x, externalGravityVector.y, currentVelocity.z);
+        characterController.Move(finalMoveVector * Time.deltaTime);
+        
+        // Calculate current horizontal speed for view bob
+        currentHorizontalSpeed = new Vector3(currentVelocity.x, 0, currentVelocity.z).magnitude;
+    }
+
+    private void HandleGravity()
+    {
+        if (characterController.isGrounded)
+        {
+            externalGravityVector.y = GroundedGravity; 
+        }
+        else
+        {
+            externalGravityVector.y += Gravity * Time.deltaTime;
+        }
+    }
+    
+    /// <summary>
+    /// Handles camera rotation (looking around) using mouse input.
+    /// </summary>
+    private void HandleCameraLook()
+    {
+        if (playerCamera == null) return;
+        
+        // Horizontal Rotation (Character body rotates)
+        float rotationX = Input.GetAxis("Mouse X") * mouseSensitivityX;
+        transform.Rotate(0, rotationX, 0);
+
+        // Vertical Rotation (Camera rotates)
+        float rotationY = Input.GetAxis("Mouse Y") * mouseSensitivityY;
+        verticalRotation -= rotationY;
+        verticalRotation = Mathf.Clamp(verticalRotation, -verticalLookLimit, verticalLookLimit);
+
+        // Apply rotation to the camera
+        playerCamera.localRotation = Quaternion.Euler(verticalRotation, 0, 0);
+    }
+    
+    /// <summary>
+    /// Applies subtle head bobbing to the camera for immersion.
+    /// </summary>
+    private void HandleViewBob()
+    {
+        if (playerCamera == null) return;
+        
+        // Only bob the camera if the character is grounded and moving
+        if (characterController.isGrounded && currentHorizontalSpeed > 0.1f)
+        {
+            // Normalize speed factor based on the base walk speed
+            float speedFactor = currentHorizontalSpeed / playerStats.BaseMovementSpeed;
+            bobTimer += Time.deltaTime * bobFrequency * speedFactor;
+
+            // Calculate horizontal and vertical offsets
+            float horizontalOffset = Mathf.Cos(bobTimer * 0.5f) * bobAmplitude * speedFactor;
+            float verticalOffset = Mathf.Sin(bobTimer) * bobAmplitude * speedFactor;
+
+            // Apply the offsets to the camera's local position
+            playerCamera.localPosition = cameraStartLocalPos + new Vector3(horizontalOffset, verticalOffset, 0f);
+        }
+        else
+        {
+            // Smoothly reset the camera position when standing still
+            playerCamera.localPosition = Vector3.Lerp(playerCamera.localPosition, cameraStartLocalPos, Time.deltaTime * bobFrequency);
+            // Reset timer to prevent sudden jumps in bob when starting to move again
+            bobTimer = 0; 
+        }
+    }
+
+
+    // --- PUBLIC INPUT HANDLERS (Called by PlayerInput.cs) ---
+
+    public void HandleMoveInput(Vector2 input)
+    {
+        currentInput = input;
+    }
+
+    public void HandleSprint(bool sprinting)
+    {
+        isSprinting = sprinting;
+    }
+
+    // --- EVENT LISTENERS (Subscriber Actions) ---
+    
+    /// <summary>
+    /// Subscriber method for the ON_BEAR_ATTACK event.
+    /// This is how the Bear AI system damages the player without knowing the PlayerController's existence.
+    /// </summary>
+    /// <param name="data">Payload: [0] Transform attackerTransform (Optional)</param>
+    private void OnBearAttack(object[] data)
+    {
+        int damage = 10; 
+        TakeDamage(damage);
+    }
+    
+    /// <summary>
+    /// Internal method to apply damage, which delegates the actual health change to the SO.
+    /// </summary>
+    public void TakeDamage(int amount)
+    {
+        playerStats.ChangeHealth(-amount);
+    }
+
+    // TODO: Persistence Handlers for game saving
+}
