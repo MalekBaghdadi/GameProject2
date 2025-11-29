@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using Game.UI;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -50,6 +51,12 @@ public class PlayerController : MonoBehaviour
     private const float Gravity = -9.81f * 3f; // Faster gravity for CC feel
     private const float GroundedGravity = -0.5f; // Ensures CharacterController remains grounded
     
+    // Pause / Input gating fields
+    [Header("Pause / Input gating")]
+    private bool acceptInput = true;
+    [SerializeField] private bool manageCursorOnPause = true; 
+    [SerializeField] private CursorLockMode resumeLockMode = CursorLockMode.Locked;
+    [SerializeField] private bool resumeCursorVisible = false;
 
     #endregion
  
@@ -75,6 +82,7 @@ public class PlayerController : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+        HandlePauseToggled();
     }
 
     private void OnEnable()
@@ -82,6 +90,8 @@ public class PlayerController : MonoBehaviour
         // Subscribe to relevant events
         EventManager.Subscribe(EventManager.ON_BEAR_ATTACK, OnBearAttack);
         // Persistence events (ON_GAME_LOADED, ON_REQUEST_SAVE) removed.
+        if (UIManager.Instance != null)
+            UIManager.Instance.OnPauseToggled += HandlePauseToggled;
     }
 
     private void OnDisable()
@@ -89,14 +99,37 @@ public class PlayerController : MonoBehaviour
         // Unsubscribe from events
         EventManager.Unsubscribe(EventManager.ON_BEAR_ATTACK, OnBearAttack);
         // Persistence events (ON_GAME_LOADED, ON_REQUEST_SAVE) removed.
+        if (UIManager.Instance != null)
+            UIManager.Instance.OnPauseToggled -= HandlePauseToggled;
     }
     
     private void Update()
     {
+        if (!acceptInput) return;
         HandleCameraLook();
         HandleMovement();
         HandleGravity();
         HandleViewBob(); 
+    }
+    
+    private void HandlePauseToggled()
+    {
+        bool isPaused = Mathf.Approximately(Time.timeScale, 0f);
+        acceptInput = !isPaused;
+
+        if (manageCursorOnPause)
+        {
+            if (isPaused)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else
+            {
+                Cursor.lockState = resumeLockMode;
+                Cursor.visible = resumeCursorVisible;
+            }
+        }
     }
 
     // --- MOVEMENT LOGIC (Executed in Update) ---

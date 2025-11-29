@@ -15,7 +15,17 @@ namespace Game.UI
         public event Action OnPauseToggled;  // subscribe by Pause menu, player, etc.
 
         private bool isPaused = false;
+        
+        [SerializeField] private KeyCode pauseKey = KeyCode.Escape;
 
+        void Update()
+        {
+            // Global pause toggle
+            if (Input.GetKeyDown(pauseKey))
+            {
+                TogglePause();
+            }
+        }
         void Awake()
         {
             if (Instance != null && Instance != this) { Destroy(this.gameObject); return; }
