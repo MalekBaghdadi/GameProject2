@@ -20,14 +20,8 @@ namespace Game.UI
 
         void Update()
         {
-            // Don't allow pausing before the start-sequence completes.
             if (!GameState.IsGameStarted) return;
-
-            // Global pause toggle
-            if (Input.GetKeyDown(pauseKey))
-            {
-                TogglePause();
-            }
+            if (Input.GetKeyDown(pauseKey)) TogglePause();
         }
         void Awake()
         {
@@ -46,11 +40,13 @@ namespace Game.UI
         // Public API
         public void TogglePause()
         {
+            Debug.Log("UIManager.TogglePause -> isPaused before = " + isPaused);
             isPaused = !isPaused;
             SetMenuActive("Pause", isPaused);
             Time.timeScale = isPaused ? 0f : 1f;
             OnPauseToggled?.Invoke();
         }
+
 
         public void SetMenuActive(string menuName, bool active)
         {

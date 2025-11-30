@@ -165,6 +165,7 @@ public class StartMenu : MonoBehaviour
             SetPlayerControlsEnabled(true);
 
         transitionCoroutine = null;
+        gameObject.SetActive(false);
     }
 
 
