@@ -20,6 +20,9 @@ namespace Game.UI
 
         void Update()
         {
+            // Don't allow pausing before the start-sequence completes.
+            if (!GameState.IsGameStarted) return;
+
             // Global pause toggle
             if (Input.GetKeyDown(pauseKey))
             {
