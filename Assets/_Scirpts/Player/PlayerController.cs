@@ -38,8 +38,8 @@ public class PlayerController : MonoBehaviour
     private Vector3 externalGravityVector; // Separated for clear gravity application
 
     // --- INPUT VARIABLES (set by PlayerInput.cs) ---
-    private Vector2 currentInput;
-    private bool isSprinting;
+    [NonSerialized] private Vector2 currentInput;
+    [NonSerialized] public bool isSprinting;
 
     // --- VIEW STATE ---
     private float verticalRotation = 0f; // Stores vertical camera rotation
@@ -57,7 +57,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool manageCursorOnPause = true; 
     [SerializeField] private CursorLockMode resumeLockMode = CursorLockMode.Locked;
     [SerializeField] private bool resumeCursorVisible = false;
-
+    
+    public Vector3 moveDirection;
+    
     #endregion
  
 
@@ -178,7 +180,8 @@ public class PlayerController : MonoBehaviour
         // Combine horizontal movement with the Y velocity (from HandleGravity)
         Vector3 finalMoveVector = new Vector3(currentVelocity.x, externalGravityVector.y, currentVelocity.z);
         characterController.Move(finalMoveVector * Time.deltaTime);
-        
+        // We use the velocity vector (ignoring gravity/vertical movement for footsteps usually)
+        moveDirection = new Vector3(currentVelocity.x, 0f, currentVelocity.z);
         // Calculate current horizontal speed for view bob
         currentHorizontalSpeed = new Vector3(currentVelocity.x, 0, currentVelocity.z).magnitude;
     }
