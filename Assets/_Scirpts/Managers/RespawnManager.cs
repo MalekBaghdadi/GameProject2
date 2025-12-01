@@ -103,15 +103,17 @@ public class RespawnManager : MonoBehaviour
             {
                 var comp = playerControlComponents[i];
                 if (comp == null) continue;
-                // If we saved previous states, restore that; otherwise just enable
                 if (prevStates != null && i < prevStates.Length) comp.enabled = prevStates[i];
                 else comp.enabled = true;
             }
         }
-
         // Fire UnityEvent for inspector wiring
         onRespawnComplete?.Invoke();
-
+        // Fire EventManager event if present (do this last)
+        try { EventManager.TriggerEvent(EventManager.ON_PLAYER_RESPAWN); } 
+        catch { Debug.LogWarning("RespawnManager: Trigger event failed"); }
+        // Fire UnityEvent for inspector wiring
+        onRespawnComplete?.Invoke();
         // Fire EventManager event if present
         try { EventManager.TriggerEvent("ON_PLAYER_RESPAWN"); } catch { }
 

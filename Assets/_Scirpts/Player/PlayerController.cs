@@ -92,6 +92,10 @@ public class PlayerController : MonoBehaviour
         // Persistence events (ON_GAME_LOADED, ON_REQUEST_SAVE) removed.
         if (UIManager.Instance != null)
             UIManager.Instance.OnPauseToggled += HandlePauseToggled;
+        
+        EventManager.Subscribe(EventManager.ON_PLAYER_DEATH, OnPlayerDeath);
+        try { EventManager.Subscribe(EventManager.ON_PLAYER_RESPAWN, OnPlayerRespawn); } catch { }
+
     }
 
     private void OnDisable()
@@ -101,6 +105,10 @@ public class PlayerController : MonoBehaviour
         // Persistence events (ON_GAME_LOADED, ON_REQUEST_SAVE) removed.
         if (UIManager.Instance != null)
             UIManager.Instance.OnPauseToggled -= HandlePauseToggled;
+        
+        EventManager.Unsubscribe(EventManager.ON_PLAYER_DEATH, OnPlayerDeath);
+        try { EventManager.Unsubscribe(EventManager.ON_PLAYER_RESPAWN, OnPlayerRespawn); } catch { }
+
     }
     
     private void Update()
@@ -278,6 +286,34 @@ public class PlayerController : MonoBehaviour
     {
         playerStats.ChangeHealth(-amount);
     }
+    
+    private void OnPlayerDeath(object[] data)
+    {
+        // Disable ALL player input immediately
+        acceptInput = false;
+
+        // Unlock cursor so UI works
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+    
+    private void OnPlayerRespawn(object[] data)
+    {
+        // Re-enable Player input gating
+        acceptInput = true;
+
+        // Restore cursor lock/visibility for gameplay
+        Cursor.lockState = resumeLockMode;
+        Cursor.visible = resumeCursorVisible;
+    }
+
+    public void EnableInput()
+    {
+        acceptInput = true;
+        Cursor.lockState = resumeLockMode;
+        Cursor.visible = resumeCursorVisible;
+    }
+
 
     // TODO: Persistence Handlers for game saving
 }

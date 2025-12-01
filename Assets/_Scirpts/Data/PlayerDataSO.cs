@@ -23,8 +23,8 @@ public class PlayerStatsSO : ScriptableObject
     public float StaminaRegenRate = 10f; // Stamina gained per second when not sprinting
 
     // --- MUTABLE (RUNTIME) PROPERTIES ---
-    [NonSerialized] private float currentHealth;
-    [NonSerialized] private float currentStamina;
+    [SerializeField] private float currentHealth;
+    [SerializeField] private float currentStamina;
 
     public float CurrentHealth => currentHealth;
     public float CurrentStamina => currentStamina;

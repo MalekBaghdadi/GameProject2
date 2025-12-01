@@ -26,6 +26,8 @@ public class EventManager : MonoBehaviour
     // Payload: [0] int damageAmount
     public const string ON_PLAYER_DAMAGED = "OnPlayerDamaged";
     public const string ON_PLAYER_DEATH = "OnPlayerDeath";
+    // Payload: no payload. Fired after the player has been respawned (used by listeners to restore stats, UI, etc.)
+    public const string ON_PLAYER_RESPAWN = "OnPlayerRespawn";
 
     // 3. Inventory & World Events (Published by Collectible/CabinRepairController)
     // Payload: [0] ItemDataSO collectedItem
@@ -63,6 +65,7 @@ public class EventManager : MonoBehaviour
                 }
                 DontDestroyOnLoad(instance.gameObject);
             }
+            instance.Init();
             return instance;
         }
     }
@@ -76,12 +79,24 @@ public class EventManager : MonoBehaviour
         if (instance == null)
         {
             instance = this;
+            Init();
             DontDestroyOnLoad(gameObject);
             eventDictionary = new Dictionary<string, Action<object[]>>();
         }
         else if (instance != this)
         {
             Destroy(gameObject);
+        }
+    }
+    
+    /// <summary>
+    /// Safe initialization method that checks if dictionary exists before creating it.
+    /// </summary>
+    private void Init()
+    {
+        if (eventDictionary == null)
+        {
+            eventDictionary = new Dictionary<string, Action<object[]>>();
         }
     }
 
@@ -137,7 +152,9 @@ public class EventManager : MonoBehaviour
         // Optional: Log a warning if a non-existent event is triggered in the editor
         else
         {
-            Debug.LogWarning($"EventManager: Event '{eventName}' triggered but has no active listeners.");
+            // Reduce noise: only log if it's a critical event like Death
+            if(eventName == ON_PLAYER_DEATH) 
+                Debug.LogWarning($"EventManager: Event '{eventName}' triggered but has no active listeners.");
         }
         #endif
     }
