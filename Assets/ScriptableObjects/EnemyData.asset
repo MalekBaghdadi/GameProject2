@@ -19,7 +19,7 @@ MonoBehaviour:
   chaseSpeed: 4.5
   attackRange: 1.6
   attackCooldown: 1.2
-  damage: 10
+  damage: 50
   interestIncreaseRate: 0.5
   interestDecayRate: 0.3
   maxInterest: 1

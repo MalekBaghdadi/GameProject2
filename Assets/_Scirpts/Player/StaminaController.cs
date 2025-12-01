@@ -12,7 +12,6 @@ public class StaminaController : MonoBehaviour
     [SerializeField] private PlayerController playerController; 
     
     private bool isConsuming = false;
-    private bool isRegenerating = false;
 
     private void Update()
     {
