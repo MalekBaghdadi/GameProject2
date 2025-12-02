@@ -1,63 +1,100 @@
 using UnityEngine;
+using TMPro;
 
-public class PlayerInteract : MonoBehaviour
+public class PlayerInteraction : MonoBehaviour
 {
-    [Header("Interaction Settings")]
-    [SerializeField] private float interactRange = 3.0f;
-    [SerializeField] private LayerMask interactableLayer;
-    
-    [Header("References")]
-    [SerializeField] private Camera playerCamera;
+    [Header("Interaction")]
+    [SerializeField] private float interactRange = 3f;
+    [SerializeField] private LayerMask interactLayer; // Only your interactable objects
+
+    [Header("UI")]
+    [SerializeField] private TMP_Text promptText; // Assign ONLY ONE TMP text
+
+    private InventoryManager inventoryManager;
 
     private void Awake()
     {
-        // Auto-assign camera if missing
-        if (playerCamera == null) playerCamera = Camera.main;
+        inventoryManager = FindObjectOfType<InventoryManager>();
+
+        // Make sure it starts hidden
+        if (promptText != null)
+            promptText.gameObject.SetActive(false);
     }
 
     private void Update()
     {
-        CheckForInteraction();
+        UpdatePrompt();
+
+        if (Input.GetKeyDown(KeyCode.E))
+            TryInteract();
     }
 
-    private void CheckForInteraction()
+    private void UpdatePrompt()
     {
-        // Create a Ray from the center of the screen
-        Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        RaycastHit hit;
+        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
 
-        // Cast Ray
-        if (Physics.Raycast(ray, out hit, interactRange, interactableLayer))
+        if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactLayer))
         {
-            // Debugging: Draw a line to what we are hitting
-            Debug.DrawLine(ray.origin, hit.point, Color.green);
-
-            if (Input.GetKeyDown(KeyCode.E))
+            // Check for collectible
+            Collectible collectible = hit.collider.GetComponent<Collectible>();
+            if (collectible != null)
             {
-                // Debugging: Log what we hit to the console
-                Debug.Log($"Hit object: {hit.collider.gameObject.name} on Layer: {LayerMask.LayerToName(hit.collider.gameObject.layer)}");
+                if (inventoryManager.currentItem == null)
+                    ShowPrompt("Press E to pick up item");
+                else
+                    ShowPrompt("Hands full");
+                return;
+            }
 
-                // Check for Collectible
-                Collectible collectible = hit.collider.GetComponent<Collectible>();
-                if (collectible != null)
-                {
-                    collectible.Interact();
-                    return;
-                }
-
-                // Check for Cabin
-                CabinController cabin = hit.collider.GetComponent<CabinController>();
-                if (cabin != null)
-                {
-                    cabin.Interact();
-                    return;
-                }
+            // Check for cabin
+            CabinController cabin = hit.collider.GetComponent<CabinController>();
+            if (cabin != null)
+            {
+                if (inventoryManager.currentItem != null)
+                    ShowPrompt("Press E to deposit item");
+                else
+                    ShowPrompt("Nothing to deposit");
+                return;
             }
         }
-        else
+
+        HidePrompt();
+    }
+
+    private void ShowPrompt(string message)
+    {
+        if (promptText == null) return;
+
+        promptText.text = message;
+        promptText.gameObject.SetActive(true);
+    }
+
+    private void HidePrompt()
+    {
+        if (promptText == null) return;
+
+        promptText.gameObject.SetActive(false);
+    }
+
+    private void TryInteract()
+    {
+        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactLayer))
         {
-            // Debugging: Draw a red line indicating no hit within range on that layer
-            Debug.DrawRay(ray.origin, ray.direction * interactRange, Color.red);
+            Collectible collectible = hit.collider.GetComponent<Collectible>();
+            if (collectible != null)
+            {
+                collectible.Interact();
+                return;
+            }
+
+            CabinController cabin = hit.collider.GetComponent<CabinController>();
+            if (cabin != null)
+            {
+                cabin.Interact();
+                return;
+            }
         }
     }
 }
