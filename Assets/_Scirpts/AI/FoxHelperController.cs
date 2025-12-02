@@ -77,8 +77,8 @@ public class FoxHelperController : MonoBehaviour
     private void Update()
     {
         // Update Animation parameters based on agent velocity
-        float speed = navMeshAgent.velocity.magnitude;
-        animator.SetFloat("Speed", speed);
+        //float speed = navMeshAgent.velocity.magnitude;
+        //animator.SetFloat("Speed", speed);
 
         // State-specific update logic (if needed beyond Coroutines/NavMesh)
         if (currentState == FoxState.GuidingToItem)

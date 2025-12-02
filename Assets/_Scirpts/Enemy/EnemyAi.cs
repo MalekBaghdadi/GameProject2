@@ -97,8 +97,8 @@ public class EnemyAI : MonoBehaviour
         }
 
         // optional animator speed param
-        if (anim != null)
-            anim.SetFloat("Speed", agent.velocity.magnitude);
+        //if (anim != null)
+         //   anim.SetFloat("Speed", agent.velocity.magnitude);
     }
 
     #region Searching
