@@ -125,8 +125,12 @@ public class InventoryManager : MonoBehaviour
         if (questText != null)
             questText.text = "All items delivered!";
 
-        // Optional: other completion behaviour (unlock door, trigger cutscene, etc.)
+        // Trigger the global game-over / level-complete event via EventManager
+        // Optionally pass payload: deliveredCount and totalItemsNeeded
+        EventManager.TriggerEvent(EventManager.ON_GAME_OVER, deliveredCount, totalItemsNeeded);
+        
     }
+
 
     private void ShowFeedback(string message)
     {

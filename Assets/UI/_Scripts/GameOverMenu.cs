@@ -45,8 +45,23 @@ public class GameOverMenu : MonoBehaviour
 
     private void OnGameOverEvent(object[] data)
     {
+        int delivered = -1, total = -1;
+        if (data != null && data.Length >= 2)
+        {
+            if (data[0] is int) delivered = (int)data[0];
+            if (data[1] is int) total = (int)data[1];
+        }
+
+        // Use values to update UI if you want:
+        if (delivered >= 0 && total >= 0)
+        {
+            // e.g. show "5 / 5" text somewhere (add a field for it)
+            Debug.Log($"GameOverMenu: delivered {delivered}/{total}");
+        }
+
         ShowGameOver();
     }
+
 
     /// <summary>
     /// Show the Game Over panel and pause the game.
