@@ -31,6 +31,7 @@ public class PlayerController : MonoBehaviour, ISaveable
     // --- COMPONENTS ---
     private CharacterController characterController;
     private StaminaController staminaController;
+    public float sprintRecoveryThreshold = 0.3f;
     
     // --- MOVEMENT STATE ---
     private Vector3 currentVelocity; // The velocity applied to the character controller
@@ -150,12 +151,44 @@ public class PlayerController : MonoBehaviour, ISaveable
         
         float speed = playerStats.BaseMovementSpeed;
         float sprintMultiplier = 1f;
+        bool wantsToSprint = isSprinting;
 
         // Check if sprinting is possible and requested
-        if (isSprinting && staminaController != null && staminaController.CanSprint())
+        if (wantsToSprint && staminaController != null && playerStats != null)
         {
-            sprintMultiplier = playerStats.SprintMultiplier;
-            staminaController.ConsumeStamina(); // Delegation to StaminaController
+            float currentStamina = playerStats.CurrentStamina;
+            float maxStamina = playerStats.MaxStamina;
+
+            // 1A. Recovery Check: If stamina is not full, check if it's below the recovery threshold.
+            // The check 'currentStamina < maxStamina' handles the initial run-out.
+            if (staminaController != null)
+            {
+                // If sprint was locked due to full depletion, don't allow sprint until unlocked
+                if (staminaController.IsSprintLocked)
+                {
+                    isSprinting = false;
+                }
+                else if (staminaController.CanSprint() && wantsToSprint)
+                {
+                    sprintMultiplier = playerStats.SprintMultiplier;
+                    staminaController.ConsumeStamina();
+                    isSprinting = true;
+                }
+                else
+                {
+                    isSprinting = false;
+                }
+            }
+            else
+            {
+                // Fallback if no stamina controller: deny sprint
+                isSprinting = false;
+            }
+        }
+        else
+        {
+            // If the player isn't pressing the sprint button or controllers are missing, they are not sprinting.
+            isSprinting = false; 
         }
 
         Vector3 forward = transform.forward;
