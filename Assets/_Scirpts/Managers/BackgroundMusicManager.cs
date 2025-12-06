@@ -27,6 +27,14 @@ public class BackgroundMusicManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             SetupAudioSource();
+            if (AudioSettingsManager.Instance != null)
+            {
+                audioSource.volume = masterVolume * AudioSettingsManager.Instance.BgmVolume;
+            }
+            else
+            {
+                audioSource.volume = masterVolume;
+            }
         }
         else if (Instance != this)
         {
@@ -38,12 +46,22 @@ public class BackgroundMusicManager : MonoBehaviour
     private void OnEnable()
     {
         EventManager.Subscribe(EventManager.ON_PLAY_BGM, OnPlayBgmEvent);
+        if (AudioSettingsManager.Instance != null)
+            AudioSettingsManager.Instance.OnBgmVolumeChanged += OnBgmVolumeChanged;
     }
 
     private void OnDisable()
     {
         EventManager.Unsubscribe(EventManager.ON_PLAY_BGM, OnPlayBgmEvent);
+        if (AudioSettingsManager.Instance != null)
+            AudioSettingsManager.Instance.OnBgmVolumeChanged -= OnBgmVolumeChanged;
     }
+
+    private void OnBgmVolumeChanged(float v)
+    {
+        audioSource.volume = Mathf.Clamp01(masterVolume * v);
+    }
+
 
     private void SetupAudioSource()
     {

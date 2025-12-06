@@ -114,6 +114,14 @@ public class PlayerFootsteps : MonoBehaviour
         footstepSource.pitch = centerPitch + Random.Range(-pitchVariance, pitchVariance);
         footstepSource.volume = Random.Range(0.85f, 1.0f); 
         
-        footstepSource.PlayOneShot(clipToPlay);
+        if (SFXManager.Instance != null)
+        {
+            // local volume multiplier ~ 0.85..1.0 to preserve variance
+            SFXManager.Instance.PlayOneShot(clipToPlay, footstepSource.volume);
+        }
+        else
+        {
+            footstepSource.PlayOneShot(clipToPlay);
+        }
     }
 }

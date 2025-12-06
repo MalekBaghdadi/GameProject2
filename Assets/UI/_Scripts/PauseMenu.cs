@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 /// <summary>
 /// Passive Pause panel UI. UIManager controls show/hide and pause state.
@@ -9,6 +10,10 @@ public class PauseMenu : MonoBehaviour
 {
     [Header("Default button (for keyboard/controller focus)")]
     public GameObject defaultButton; // assign ResumeButton
+    
+    [Header("Audio Sliders")]
+    public Slider bgmSlider;
+    public Slider sfxSlider;
 
     void OnEnable()
     {
@@ -18,7 +23,41 @@ public class PauseMenu : MonoBehaviour
             EventSystem.current.SetSelectedGameObject(null);
             EventSystem.current.SetSelectedGameObject(defaultButton);
         }
+        
+        if (AudioSettingsManager.Instance != null)
+        {
+            if (bgmSlider != null)
+            {
+                bgmSlider.value = AudioSettingsManager.Instance.BgmVolume;
+                bgmSlider.onValueChanged.AddListener(OnBgmSliderChanged);
+            }
+
+            if (sfxSlider != null)
+            {
+                sfxSlider.value = AudioSettingsManager.Instance.SfxVolume;
+                sfxSlider.onValueChanged.AddListener(OnSfxSliderChanged);
+            }
+        }
     }
+    
+    void OnDisable()
+    {
+        if (bgmSlider != null) bgmSlider.onValueChanged.RemoveListener(OnBgmSliderChanged);
+        if (sfxSlider != null) sfxSlider.onValueChanged.RemoveListener(OnSfxSliderChanged);
+    }
+
+    private void OnBgmSliderChanged(float v)
+    {
+        if (AudioSettingsManager.Instance != null)
+            AudioSettingsManager.Instance.SetBgmVolume(v);
+    }
+
+    private void OnSfxSliderChanged(float v)
+    {
+        if (AudioSettingsManager.Instance != null)
+            AudioSettingsManager.Instance.SetSfxVolume(v);
+    }
+
 
     // Called by ResumeButton OnClick
     public void OnResumePressed()
