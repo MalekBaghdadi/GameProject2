@@ -36,7 +36,14 @@ public class PauseMenu : MonoBehaviour
     // Called by QuitButton OnClick
     public void OnQuitPressed()
     {
-        Debug.Log("PauseMenu.OnQuitPressed called");
+        if (PersistenceManager.Instance != null)
+        {
+            PersistenceManager.Instance.SaveGame();
+        }
+        else
+        {
+            Debug.LogError("PauseMenu: PersistenceManager missing! Game not saved.");
+        }
     #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
     #else

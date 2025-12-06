@@ -52,20 +52,21 @@ public class StartMenu : MonoBehaviour
 
     void Start()
     {
+        if (PersistenceManager.Instance != null)
+        {
+            PersistenceManager.Instance.LoadGame(); 
+            Debug.Log("Game data loaded in Awake(). Camera will target the new position.");
+        }
+        
+        Time.timeScale = 0f;
+        
         // Ensure Start menu is visible and on top
         if (contentRoot != null) contentRoot.SetActive(true);
         gameObject.SetActive(true);
         transform.SetAsLastSibling();
 
-        // Make sure the pause menu isn't blocking input
-        // (Optional - you can remove if already set)
-        // var pauseGO = GameObject.Find("Pause");
-        // if (pauseGO) pauseGO.SetActive(false);
-
-        // --- ADD THESE TWO LINES: show and unlock the cursor while the Start Menu is active ---
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        // -------------------------------------------------------------------------------
 
         // If using main camera, snap it to start transform at beginning (unparent, set world pos/rot)
         if (moveMainCamera && mainCamera != null && startCamTransform != null)
@@ -87,7 +88,6 @@ public class StartMenu : MonoBehaviour
 
     public void OnStartPressed()
     {
-        Debug.Log("Start pressed");
         if (transitionCoroutine != null) return;
         transitionCoroutine = StartCoroutine(CameraTransitionCoroutine());
     }
@@ -97,15 +97,13 @@ public class StartMenu : MonoBehaviour
         // 1. Safety Checks
         if (moveMainCamera && mainCamera == null) yield break;
         if (startCamTransform == null || playerCamTransform == null) yield break;
-
-        // --- NEW: Hide UI and Cursor IMMEDIATELY ---
+        
         if (contentRoot != null) contentRoot.SetActive(false);
         else gameObject.SetActive(false); // Fallback if contentRoot isn't assigned
 
         // Hide cursor immediately for a clean cinematic look
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
-        // -------------------------------------------
 
         // 2. FORCE TimeScale to 1
         Time.timeScale = 1f;

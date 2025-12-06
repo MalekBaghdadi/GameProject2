@@ -1,8 +1,41 @@
 using UnityEngine;
 
-public class Collectible : MonoBehaviour
+public class Collectible : MonoBehaviour, ISaveable
 {
+    [SerializeField] private string uniqueID;
     [SerializeField] private ItemDataSO itemData;
+    
+    // Helper to generate ID in Editor
+    [ContextMenu("Generate ID")]
+    private void GenerateGuid()
+    {
+        uniqueID = System.Guid.NewGuid().ToString();
+    }
+
+    public void SaveData(ref GameData data)
+    {
+        // If this object is disabled (collected), add ID to list
+        if (!gameObject.activeSelf) 
+        {
+            if (!data.collectedItemIDs.Contains(uniqueID))
+            {
+                data.collectedItemIDs.Add(uniqueID);
+            }
+        }
+    }
+
+    public void LoadData(GameData data)
+    {
+        // Check if my ID is in the "already collected" list
+        if (data.collectedItemIDs.Contains(uniqueID))
+        {
+            gameObject.SetActive(false);
+        }
+        else
+        {
+            gameObject.SetActive(true);
+        }
+    }
 
     public void Interact()
     {
@@ -36,4 +69,6 @@ public class Collectible : MonoBehaviour
             Debug.Log("[Collectible] Inventory is full or item rejected.");
         }
     }
+    
+    
 }

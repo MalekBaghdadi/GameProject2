@@ -1,7 +1,7 @@
 using UnityEngine;
-using TMPro; // comment out if not using TMP
+using TMPro;
 
-public class InventoryManager : MonoBehaviour
+public class InventoryManager : MonoBehaviour, ISaveable
 {
     [Header("Quest Settings")]
     [Tooltip("How many items required in total (example: 5)")]
@@ -15,6 +15,10 @@ public class InventoryManager : MonoBehaviour
 
     // Optional: temporary message display
     [SerializeField] private TMP_Text feedbackText; // optional small popup text
+
+    [Header("Audio")]
+    [Tooltip("Optional: sound played when an item is deposited to the cabin.")]
+    [SerializeField] private AudioClip depositSound;
 
     private int deliveredCount = 0;
 
@@ -51,9 +55,14 @@ public class InventoryManager : MonoBehaviour
         // When an item is collected, change quest text to "Get the item to the cabin"
         SetQuestText_GetToCabin();
 
-        // Optional: play sound from itemData if present
+        // --- AUDIO: broadcast collect SFX via EventManager (AudioManager should handle playback) ---
         if (item.collectSound != null)
-            AudioSource.PlayClipAtPoint(item.collectSound, Camera.main.transform.position);
+        {
+            EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, item.collectSound);
+        }
+
+        // --- EVENT: notify other systems that an item was collected (payload: ItemDataSO) ---
+        EventManager.TriggerEvent(EventManager.ON_ITEM_COLLECTED, item);
 
         return true;
     }
@@ -79,6 +88,12 @@ public class InventoryManager : MonoBehaviour
 
         // Update quest text to next target (unless done)
         UpdateQuestText();
+
+        // --- AUDIO: broadcast deposit SFX via EventManager (AudioManager should handle playback) ---
+        if (depositSound != null)
+        {
+            EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, depositSound);
+        }
 
         // Optional: check completion
         if (deliveredCount >= totalItemsNeeded)
@@ -126,11 +141,8 @@ public class InventoryManager : MonoBehaviour
             questText.text = "All items delivered!";
 
         // Trigger the global game-over / level-complete event via EventManager
-        // Optionally pass payload: deliveredCount and totalItemsNeeded
         EventManager.TriggerEvent(EventManager.ON_GAME_OVER, deliveredCount, totalItemsNeeded);
-        
     }
-
 
     private void ShowFeedback(string message)
     {
@@ -149,4 +161,40 @@ public class InventoryManager : MonoBehaviour
     }
 
     #endregion
+    
+    public void SaveData(ref GameData data)
+    {
+        data.itemsDelivered = this.deliveredCount;
+
+        if (this.currentItem != null)
+        {
+            data.currentHeldItemID = this.currentItem.itemID;
+        }
+        else
+        {
+            data.currentHeldItemID = "";
+        }
+    }
+
+    public void LoadData(GameData data)
+    {
+        this.deliveredCount = data.itemsDelivered;
+        UpdateQuestText(); // Refresh UI
+
+        // Restore held item
+        if (!string.IsNullOrEmpty(data.currentHeldItemID))
+        {
+            // Ask PersistenceManager to find the SO for us
+            ItemDataSO item = PersistenceManager.Instance.GetItemByID(data.currentHeldItemID);
+            if (item != null)
+            {
+                this.currentItem = item;
+                Debug.Log($"[Load] Restored held item: {item.itemName}");
+            }
+        }
+        else
+        {
+            this.currentItem = null;
+        }
+    }
 }

@@ -3,7 +3,7 @@ using System;
 using Game.UI;
 
 [RequireComponent(typeof(CharacterController))]
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, ISaveable
 {
     #region DataFields
     // --- SCRIPTABLE OBJECT REFERENCES ---
@@ -316,7 +316,36 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = resumeLockMode;
         Cursor.visible = resumeCursorVisible;
     }
+    
+    public void SaveData(ref GameData data)
+    {
+        data.playerPosition = transform.position;
+        data.playerRotation = transform.rotation;
+        data.playerVerticalLookRotation = verticalRotation;
+    }
+    // In PlayerController.cs
 
+    public void LoadData(GameData data)
+    {
+        if (characterController != null) characterController.enabled = false;
+    
+        transform.position = data.playerPosition;
+        transform.rotation = data.playerRotation;
+        Physics.SyncTransforms();
+    
+        // Restore camera look angle
+        verticalRotation = data.playerVerticalLookRotation;
+        if (playerCamera != null) playerCamera.localRotation = Quaternion.Euler(verticalRotation, 0, 0);
 
-    // TODO: Persistence Handlers for game saving
+        // Re-enable the controller after a short delay
+        Invoke(nameof(ReEnableController), 0.01f); 
+    }
+
+    private void ReEnableController()
+    {
+        if (characterController != null)
+        {
+            characterController.enabled = true;
+        }
+    }
 }

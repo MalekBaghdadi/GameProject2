@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class EnemyAI : MonoBehaviour
+public class EnemyAI : MonoBehaviour, ISaveable
 {
     public EnemyData data; // assign in inspector (tunable values)
 
@@ -438,6 +438,30 @@ public class EnemyAI : MonoBehaviour
         }
     }
     #endregion
+    
+    public void SaveData(ref GameData data)
+    {
+        data.enemyPosition = transform.position;
+    }
+
+    // In EnemyAI.cs
+
+    public void LoadData(GameData data)
+    {
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.enabled = false; 
+            
+            transform.position = data.enemyPosition;
+            agent.enabled = true;
+        }
+        else
+        {
+            // Fallback if NavMeshAgent component is missing
+            transform.position = data.enemyPosition;
+        }
+    }
 
     #region Gizmos
     void OnDrawGizmos()
