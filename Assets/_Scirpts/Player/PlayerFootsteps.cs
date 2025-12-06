@@ -74,7 +74,7 @@ public class PlayerFootsteps : MonoBehaviour
         // --- 3. DETERMINE STATE (Sprint Fix) ---
         // Your PlayerController automatically sets isSprinting to false if stamina runs out,
         // so we trust this variable completely.
-        bool isSprinting = playerMovement.isSprinting;
+        bool isSprinting = playerMovement.IsActuallySprinting;
 
         float targetRate = isSprinting ? baseSprintRate : baseWalkRate;
         

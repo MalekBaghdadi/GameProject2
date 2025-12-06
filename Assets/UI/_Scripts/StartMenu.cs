@@ -32,6 +32,9 @@ public class StartMenu : MonoBehaviour
 
     [Tooltip("Explicit list of MonoBehaviour components on the player to disable while transitioning. Recommended.")]
     public MonoBehaviour[] playerControlComponents;
+    
+    [SerializeField] private AudioClip backgroundMusic;
+
 
     // Internal
     Camera mainCamera;
@@ -57,6 +60,8 @@ public class StartMenu : MonoBehaviour
             PersistenceManager.Instance.LoadGame(); 
             Debug.Log("Game data loaded in Awake(). Camera will target the new position.");
         }
+        
+        EventManager.TriggerEvent(EventManager.ON_PLAY_BGM, backgroundMusic, 1f, true);
         
         Time.timeScale = 0f;
         

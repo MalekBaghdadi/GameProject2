@@ -61,6 +61,17 @@ public class PlayerController : MonoBehaviour, ISaveable
     
     public Vector3 moveDirection;
     
+    public bool IsActuallySprinting
+    {
+        get
+        {
+            if (!isSprinting) return false;                    // player not holding sprint (input)
+            if (staminaController == null) return false;      // no stamina system -> can't sprint
+            // staminaController.CanSprint() already returns false if sprintLocked or low stamina
+            return staminaController.CanSprint();
+        }
+    }
+    
     #endregion
  
 
