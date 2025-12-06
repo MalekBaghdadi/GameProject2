@@ -1,5 +1,5 @@
 using UnityEngine;
-using TMPro; // comment out if not using TMP
+using TMPro; 
 
 public class InventoryManager : MonoBehaviour
 {

@@ -1,99 +1,85 @@
 using UnityEngine;
-using TMPro;
 
-public class PlayerInteraction : MonoBehaviour
+public class PlayerInteract : MonoBehaviour
 {
-    [Header("Interaction")]
+    [Header("References")]
+    [SerializeField] private Camera cam;
+
+    [Header("Interaction Settings")]
     [SerializeField] private float interactRange = 3f;
-    [SerializeField] private LayerMask interactLayer; // Only your interactable objects
+    [SerializeField] private float interactAngle = 30f;
+    [SerializeField] private LayerMask collectibleLayer;
 
-    [Header("UI")]
-    [SerializeField] private TMP_Text promptText; // Assign ONLY ONE TMP text
+    private GameObject currentTarget;
+    private GameObject previousTarget;
 
-    private InventoryManager inventoryManager;
+    private int collectibleLayerIndex;
+    private int interactablesLayerIndex;
 
-    private void Awake()
+    private void Start()
     {
-        inventoryManager = FindObjectOfType<InventoryManager>();
-
-        // Make sure it starts hidden
-        if (promptText != null)
-            promptText.gameObject.SetActive(false);
+        collectibleLayerIndex = LayerMask.NameToLayer("Collectible");
+        interactablesLayerIndex = LayerMask.NameToLayer("Interactables");
     }
 
     private void Update()
     {
-        UpdatePrompt();
-
-        if (Input.GetKeyDown(KeyCode.E))
-            TryInteract();
+        DetectItem();
+        HandleInteraction();
     }
 
-    private void UpdatePrompt()
+    private void DetectItem()
     {
-        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactLayer))
+        // STEP 1: Clear highlight from last frame if needed
+        if (previousTarget != currentTarget && previousTarget != null)
         {
-            // Check for collectible
-            Collectible collectible = hit.collider.GetComponent<Collectible>();
-            if (collectible != null)
-            {
-                if (inventoryManager.currentItem == null)
-                    ShowPrompt("Press E to pick up item");
-                else
-                    ShowPrompt("Hands full");
-                return;
-            }
+            previousTarget.layer = collectibleLayerIndex;
+        }
 
-            // Check for cabin
-            CabinController cabin = hit.collider.GetComponent<CabinController>();
-            if (cabin != null)
+        previousTarget = currentTarget;
+        currentTarget = null;  // Reset for this frame
+
+        // STEP 2: Detect items in range
+        Collider[] hits = Physics.OverlapSphere(transform.position, interactRange, collectibleLayer);
+
+        float closestDist = Mathf.Infinity;
+        GameObject bestCandidate = null;
+
+        foreach (Collider hit in hits)
+        {
+            Vector3 dir = (hit.transform.position - cam.transform.position).normalized;
+            float angle = Vector3.Angle(cam.transform.forward, dir);
+
+            if (angle < interactAngle)
             {
-                if (inventoryManager.currentItem != null)
-                    ShowPrompt("Press E to deposit item");
-                else
-                    ShowPrompt("Nothing to deposit");
-                return;
+                float dist = Vector3.Distance(cam.transform.position, hit.transform.position);
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                    bestCandidate = hit.gameObject;
+                }
             }
         }
 
-        HidePrompt();
-    }
-
-    private void ShowPrompt(string message)
-    {
-        if (promptText == null) return;
-
-        promptText.text = message;
-        promptText.gameObject.SetActive(true);
-    }
-
-    private void HidePrompt()
-    {
-        if (promptText == null) return;
-
-        promptText.gameObject.SetActive(false);
-    }
-
-    private void TryInteract()
-    {
-        Ray ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactLayer))
+        // STEP 3: Highlight the best candidate
+        if (bestCandidate != null)
         {
-            Collectible collectible = hit.collider.GetComponent<Collectible>();
-            if (collectible != null)
-            {
-                collectible.Interact();
-                return;
-            }
+            currentTarget = bestCandidate;
+            currentTarget.layer = interactablesLayerIndex;
+        }
+    }
 
-            CabinController cabin = hit.collider.GetComponent<CabinController>();
-            if (cabin != null)
+    private void HandleInteraction()
+    {
+        if (currentTarget == null)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            Collectible c = currentTarget.GetComponent<Collectible>();
+            if (c != null)
             {
-                cabin.Interact();
-                return;
+                c.Interact();
             }
         }
     }
