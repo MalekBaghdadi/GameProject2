@@ -104,9 +104,7 @@ public class StartMenu : MonoBehaviour
         // Hide cursor immediately for a clean cinematic look
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
-
-        // 2. FORCE TimeScale to 1
-        Time.timeScale = 1f;
+        
 
         // 3. Disable Player Controls
         if (disablePlayerInputDuringTransition)
@@ -128,7 +126,7 @@ public class StartMenu : MonoBehaviour
 
         while (elapsed < duration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             float alpha = Mathf.Clamp01(elapsed / duration);
 
             // Smooth Ease Out (starts fast, slows down at the end)
@@ -158,6 +156,8 @@ public class StartMenu : MonoBehaviour
 
         // 6. Final Game State Setup
         GameState.IsGameStarted = true;
+        
+        Time.timeScale = 1f;
 
         if (disablePlayerInputDuringTransition)
             SetPlayerControlsEnabled(true);
