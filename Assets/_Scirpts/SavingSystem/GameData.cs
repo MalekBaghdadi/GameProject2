@@ -12,6 +12,9 @@ public class GameData
 
     // --- Enemy Data ---
     public Vector3 enemyPosition;
+    
+    // --- Pet (Fox) Data ---      
+    public Vector3 foxPosition;
 
     // --- Inventory / Quest Data ---
     public int itemsDelivered;
@@ -27,5 +30,6 @@ public class GameData
         playerPosition = new Vector3(0, 1, 0); // Default spawn
         playerVerticalLookRotation = 0f; // New default
         enemyPosition = new Vector3(10, 1, 10); // Default enemy spawn
+        foxPosition = new Vector3(1f, 1f, 0f);
     }
 }

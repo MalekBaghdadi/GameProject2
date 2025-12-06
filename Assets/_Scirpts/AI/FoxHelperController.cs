@@ -11,7 +11,7 @@ using System.Collections;
 /// </summary>
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Animator))]
-public class FoxHelperController : MonoBehaviour
+public class FoxHelperController : MonoBehaviour, ISaveable
 {
     [Header("Configuration")]
     [Tooltip("How close to the player the fox tries to stay when wandering.")]
@@ -180,5 +180,60 @@ public class FoxHelperController : MonoBehaviour
         {
             StartWandering();
         }
+    }
+    
+    public void SaveData(ref GameData data)
+    {
+        if (data == null) return;
+        // Save the fox world position
+        data.foxPosition = transform.position;
+    }
+
+    public void LoadData(GameData data)
+    {
+        if (data == null) return;
+
+        Vector3 targetPos = data.foxPosition;
+
+        // 1. Handle NavMeshAgent logic
+        if (navMeshAgent != null)
+        {
+            // Option A: Warp if the agent is ready and active
+            // (Warp is preferred as it keeps the agent enabled)
+            if (navMeshAgent.isOnNavMesh)
+            {
+                // Stop wandering so we don't immediately walk away
+                if (wanderCoroutine != null) StopCoroutine(wanderCoroutine);
+
+                NavMeshHit hit;
+                // Try to find the nearest valid point on the mesh
+                if (NavMesh.SamplePosition(targetPos, out hit, 2.0f, NavMesh.AllAreas))
+                {
+                    navMeshAgent.Warp(hit.position);
+                }
+                else
+                {
+                    navMeshAgent.Warp(targetPos);
+                }
+            
+                navMeshAgent.ResetPath();
+            }
+            else
+            {
+                // Option B: FORCE the position if the agent is not yet bound (e.g., scene start)
+                // We must disable the agent to prevent it from overriding the transform.
+                navMeshAgent.enabled = false; 
+                transform.position = targetPos;
+                navMeshAgent.enabled = true; // Re-enabling snaps the agent to the new transform
+            }
+        }
+        else
+        {
+            // No agent, just move
+            transform.position = targetPos;
+        }
+
+        // After loading, resume default behavior
+        StartWandering();
     }
 }
