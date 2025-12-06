@@ -12,15 +12,11 @@ public class StaminaController : MonoBehaviour
     [SerializeField] private PlayerController playerController;
 
     private bool isConsuming = false;
-
-    // --- NEW: sprint lock state (true = sprint disabled until recovery threshold) ---
     private bool sprintLocked = false;
     public bool IsSprintLocked => sprintLocked;
-    // ---------------------------------------------------------------------------
 
     private void Awake()
     {
-        // fallback if reference not assigned in inspector
         if (playerController == null)
             playerController = GetComponent<PlayerController>();
     }
