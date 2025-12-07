@@ -1,17 +1,23 @@
 using System;
 using UnityEngine;
+using System.Collections;
 
+// Requires a collider for interaction detection
 [RequireComponent(typeof(Collider))]
 public class Collectible : MonoBehaviour, ISaveable
 {
     [Header("Identity / Data")]
-    [SerializeField] private string uniqueID;
+    [SerializeField] 
+    [Tooltip("Unique ID is crucial for saving/loading. Use the 'Generate ID' context menu.")]
+    private string uniqueID;
     [SerializeField] private ItemDataSO itemData;
 
-    [Header("Sparkle (pooled VFX)")]
+    [Header("Visuals & Audio")]
+    [SerializeField] private AudioClip pickupSFX;
     [Tooltip("Optional sparkle prefab instance retrieved from SparklePool")]
     [SerializeField] private GameObject sparkleInstance;
 
+    // --- Editor Helpers ---
     // Helper to generate ID in Editor
     [ContextMenu("Generate ID")]
     private void GenerateGuid()
@@ -19,10 +25,10 @@ public class Collectible : MonoBehaviour, ISaveable
         uniqueID = System.Guid.NewGuid().ToString();
     }
 
+    // --- Lifecycle and VFX Management (From Script B) ---
     private void Start()
     {
         // Request a sparkle particle from the pool when this collectible spawns
-        // (Only if object is active at Start)
         if (gameObject.activeSelf)
         {
             TryAcquireSparkle();
@@ -46,10 +52,12 @@ public class Collectible : MonoBehaviour, ISaveable
         // Keep sparkle positioned above the item if it's active
         if (sparkleInstance != null && sparkleInstance.activeSelf)
         {
-            sparkleInstance.transform.position = transform.position + Vector3.up * 0.35f;
+            // Adjust position offset as needed
+            sparkleInstance.transform.position = transform.position + Vector3.up * 0.35f; 
         }
     }
-
+    
+    // --- Sparkle Pool Logic ---
     private void TryAcquireSparkle()
     {
         if (sparkleInstance != null) return; // already have one
@@ -58,11 +66,7 @@ public class Collectible : MonoBehaviour, ISaveable
         {
             sparkleInstance = SparklePool.Instance.GetSparkle(transform.position + Vector3.up * 0.35f);
         }
-        else
-        {
-            // Not fatal — sparkle is optional
-            // Debug.LogWarning("[Collectible] No SparklePool found in the scene.");
-        }
+        // No warning if no pool exists, as it's optional visual flair
     }
 
     private void ReturnSparkleToPool()
@@ -74,7 +78,7 @@ public class Collectible : MonoBehaviour, ISaveable
         }
     }
 
-    // --- Interact / Collection logic ---
+    // --- Interaction Logic (Combined) ---
     public void Interact()
     {
         if (itemData == null)
@@ -83,24 +87,34 @@ public class Collectible : MonoBehaviour, ISaveable
             return;
         }
 
+        // Find the Inventory Manager
         InventoryManager inventoryManager = FindObjectOfType<InventoryManager>();
 
         if (inventoryManager == null)
         {
-            Debug.LogError("[Collectible] CRITICAL ERROR: No 'InventoryManager' found in the scene. The item cannot be collected without it.");
+            Debug.LogError("[Collectible] CRITICAL ERROR: No 'InventoryManager' found in the scene.");
             return;
         }
 
+        // Attempt to collect
         bool collectionSuccessful = inventoryManager.TryCollectItem(itemData);
 
         if (collectionSuccessful)
         {
             Debug.Log($"[Collectible] Collected: {itemData.itemName}");
+            
+            // PLAY PICKUP SOUND (From Script A)
+            if (pickupSFX != null)
+            {
+                // NOTE: Assuming EventManager is a static class accessible here
+                // Replace with your actual audio trigger method if different
+                EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, new object[] { pickupSFX, 1f });
+            }
 
-            // RETURN particle effect to pool (if pooled)
+            // VFX Cleanup (From Script B)
             ReturnSparkleToPool();
 
-            // Disable the collectible object (this will also be saved by SaveData)
+            // Disable object to make it 'disappear'
             gameObject.SetActive(false);
         }
         else
@@ -109,14 +123,14 @@ public class Collectible : MonoBehaviour, ISaveable
         }
     }
 
-    // --- ISaveable interface ---
+    // --- ISaveable interface (Combined and Robust) ---
     public void SaveData(ref GameData data)
     {
-        // Ensure we have an ID (useful if created at runtime without setting ID)
+        // Ensure ID exists before saving
         if (string.IsNullOrEmpty(uniqueID))
             uniqueID = System.Guid.NewGuid().ToString();
 
-        // If this object is disabled (collected), add ID to list
+        // If collected (disabled), ensure ID is in the list
         if (!gameObject.activeSelf)
         {
             if (!data.collectedItemIDs.Contains(uniqueID))
@@ -126,7 +140,7 @@ public class Collectible : MonoBehaviour, ISaveable
         }
         else
         {
-            // If active and previously saved as collected, remove it (optional but keeps save consistent)
+            // Optional: If active, remove it from the collected list (in case it was dropped/respawned)
             if (data.collectedItemIDs.Contains(uniqueID))
             {
                 data.collectedItemIDs.Remove(uniqueID);
@@ -136,11 +150,10 @@ public class Collectible : MonoBehaviour, ISaveable
 
     public void LoadData(GameData data)
     {
-        // If uniqueID isn't set, we can't match saved state — log a warning.
+        // ID check (From Script B for robustness)
         if (string.IsNullOrEmpty(uniqueID))
         {
-            Debug.LogWarning($"[Collectible] {gameObject.name} has no uniqueID. Generate one via the context menu to enable saving.");
-            // leave active by default
+            Debug.LogWarning($"[Collectible] {gameObject.name} has no uniqueID. Skipping load state.");
             gameObject.SetActive(true);
             return;
         }
@@ -148,7 +161,7 @@ public class Collectible : MonoBehaviour, ISaveable
         // Check if my ID is in the "already collected" list
         if (data.collectedItemIDs != null && data.collectedItemIDs.Contains(uniqueID))
         {
-            // This item was collected previously -> ensure it remains disabled and return sparkle if any
+            // This item was collected -> disable it and clean up VFX
             if (gameObject.activeSelf)
             {
                 gameObject.SetActive(false);
@@ -157,7 +170,7 @@ public class Collectible : MonoBehaviour, ISaveable
         }
         else
         {
-            // Not collected -> ensure active and re-acquire sparkle
+            // Not collected -> ensure active and show VFX
             if (!gameObject.activeSelf)
             {
                 gameObject.SetActive(true);
