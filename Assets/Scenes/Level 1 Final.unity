@@ -162721,6 +162721,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Mimic
       objectReference: {fileID: 0}
+    - target: {fileID: 8675915457954794080, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8675915457954794082, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
       propertyPath: m_RootOrder
@@ -165462,12 +165467,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76f8ca9e79065534fb89547835e88e57, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cam: {fileID: 0}
+  cam: {fileID: 330585545}
+  promptText: {fileID: 1286678408}
   interactRange: 3
   interactAngle: 30
-  collectibleLayer:
+  interactLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 192
+  defaultLayerName: Collectible
+  highlightLayerName: Interactables
 --- !u!1001 &1619962455
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -1,53 +1,78 @@
 using UnityEngine;
+using TMPro;
 
-public class PlayerInteract : MonoBehaviour
+public class PlayerInteraction : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Camera cam;
-
-    [Header("Interaction Settings")]
+    [SerializeField] private TMP_Text promptText;
+    
+    [Header("Detection Settings")]
     [SerializeField] private float interactRange = 3f;
     [SerializeField] private float interactAngle = 30f;
-    [SerializeField] private LayerMask collectibleLayer;
+    [SerializeField] private LayerMask interactLayer; // Assign "Collectible" AND "Interactables" here
 
+    [Header("Layer IDs (For Highlighting)")]
+    // The name of the layer items sit on by default
+    [SerializeField] private string defaultLayerName = "Collectible"; 
+    // The name of the layer used for the outline/highlight effect
+    [SerializeField] private string highlightLayerName = "Interactables"; 
+
+    private InventoryManager inventoryManager;
     private GameObject currentTarget;
     private GameObject previousTarget;
 
-    private int collectibleLayerIndex;
-    private int interactablesLayerIndex;
+    private int defaultLayerIndex;
+    private int highlightLayerIndex;
 
-    private void Start()
+    private void Awake()
     {
-        collectibleLayerIndex = LayerMask.NameToLayer("Collectible");
-        interactablesLayerIndex = LayerMask.NameToLayer("Interactables");
+        inventoryManager = FindObjectOfType<InventoryManager>();
+        
+        // Fallback if camera isn't assigned
+        if (cam == null) cam = Camera.main;
+
+        // Initialize Layer IDs
+        defaultLayerIndex = LayerMask.NameToLayer(defaultLayerName);
+        highlightLayerIndex = LayerMask.NameToLayer(highlightLayerName);
+
+        // Hide UI on start
+        if (promptText != null) promptText.gameObject.SetActive(false);
     }
 
     private void Update()
     {
-        DetectItem();
-        HandleInteraction();
+        DetectTarget();
+        UpdateUI();
+        HandleInput();
     }
 
-    private void DetectItem()
+    // ---------------------------------------------------------
+    // STEP 1: Find the Best Target (Logic from Script A)
+    // ---------------------------------------------------------
+    private void DetectTarget()
     {
-        // STEP 1: Clear highlight from last frame if needed
+        // Reset the previous target's layer (remove highlight)
         if (previousTarget != currentTarget && previousTarget != null)
         {
-            previousTarget.layer = collectibleLayerIndex;
+            previousTarget.layer = defaultLayerIndex;
         }
 
         previousTarget = currentTarget;
-        currentTarget = null;  // Reset for this frame
+        currentTarget = null; 
 
-        // STEP 2: Detect items in range
-        Collider[] hits = Physics.OverlapSphere(transform.position, interactRange, collectibleLayer);
-
+        // Find all colliders in range
+        Collider[] hits = Physics.OverlapSphere(transform.position, interactRange, interactLayer);
+        
         float closestDist = Mathf.Infinity;
         GameObject bestCandidate = null;
 
         foreach (Collider hit in hits)
         {
+            // Calculate direction to target
             Vector3 dir = (hit.transform.position - cam.transform.position).normalized;
+            
+            // Check if it is within the Field of View angle
             float angle = Vector3.Angle(cam.transform.forward, dir);
 
             if (angle < interactAngle)
@@ -61,26 +86,87 @@ public class PlayerInteract : MonoBehaviour
             }
         }
 
-        // STEP 3: Highlight the best candidate
+        // Set the new current target and apply highlight
         if (bestCandidate != null)
         {
             currentTarget = bestCandidate;
-            currentTarget.layer = interactablesLayerIndex;
+            currentTarget.layer = highlightLayerIndex;
         }
     }
 
-    private void HandleInteraction()
+    // ---------------------------------------------------------
+    // STEP 2: Update the Text Prompt (Logic from Script B)
+    // ---------------------------------------------------------
+    private void UpdateUI()
     {
         if (currentTarget == null)
-            return;
-
-        if (Input.GetKeyDown(KeyCode.E))
         {
-            Collectible c = currentTarget.GetComponent<Collectible>();
-            if (c != null)
+            HidePrompt();
+            return;
+        }
+
+        // Logic for Collectibles
+        Collectible collectible = currentTarget.GetComponent<Collectible>();
+        if (collectible != null)
+        {
+            if (inventoryManager.currentItem == null)
+                ShowPrompt("Press E to pick up");
+            else
+                ShowPrompt("Hands full");
+            return;
+        }
+
+        // Logic for Cabin
+        CabinController cabin = currentTarget.GetComponent<CabinController>();
+        if (cabin != null)
+        {
+            if (inventoryManager.currentItem != null)
+                ShowPrompt("Press E to deposit");
+            else
+                ShowPrompt("Nothing to deposit");
+            return;
+        }
+
+        // Default fallback if it's interactable but neither of above
+        ShowPrompt("Press E to Interact");
+    }
+
+    // ---------------------------------------------------------
+    // STEP 3: Handle Interaction (Logic from Script B)
+    // ---------------------------------------------------------
+    private void HandleInput()
+    {
+        if (Input.GetKeyDown(KeyCode.E) && currentTarget != null)
+        {
+            Collectible collectible = currentTarget.GetComponent<Collectible>();
+            if (collectible != null)
             {
-                c.Interact();
+                collectible.Interact();
+                return;
+            }
+
+            CabinController cabin = currentTarget.GetComponent<CabinController>();
+            if (cabin != null)
+            {
+                cabin.Interact();
+                return;
             }
         }
+    }
+
+    // ---------------------------------------------------------
+    // UI Helpers
+    // ---------------------------------------------------------
+    private void ShowPrompt(string message)
+    {
+        if (promptText == null) return;
+        promptText.text = message;
+        promptText.gameObject.SetActive(true);
+    }
+
+    private void HidePrompt()
+    {
+        if (promptText == null) return;
+        promptText.gameObject.SetActive(false);
     }
 }
