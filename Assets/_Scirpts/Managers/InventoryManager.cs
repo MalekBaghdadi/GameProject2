@@ -1,6 +1,12 @@
+using System;
 using UnityEngine;
 using TMPro;
 
+/// <summary>
+/// Inventory manager: handles picking up a single carried item, depositing it to the cabin,
+/// quest progress text, simple feedback popup, and saving/loading via ISaveable.
+/// Plays SFX by triggering EventManager.ON_PLAY_SFX so a centralized Audio system can route it.
+/// </summary>
 public class InventoryManager : MonoBehaviour, ISaveable
 {
     [Header("Quest Settings")]
@@ -8,18 +14,18 @@ public class InventoryManager : MonoBehaviour, ISaveable
     [SerializeField] private int totalItemsNeeded = 5;
 
     [Header("Runtime (debug)")]
-    public ItemDataSO currentItem; // shows what we are carrying in Inspector
+    [Tooltip("Shows what we are carrying in Inspector")]
+    public ItemDataSO currentItem;
 
     [Header("UI")]
-    [SerializeField] private TMP_Text questText; // assign in inspector (TextMeshPro)
-
-    // Optional: temporary message display
-    [SerializeField] private TMP_Text feedbackText; // optional small popup text
+    [SerializeField] private TMP_Text questText;      // assign in inspector (TextMeshPro)
+    [SerializeField] private TMP_Text feedbackText;   // optional small popup text
 
     [Header("Audio")]
     [Tooltip("Optional: sound played when an item is deposited to the cabin.")]
     [SerializeField] private AudioClip depositSound;
 
+    // Internal state
     private int deliveredCount = 0;
 
     private void Start()
@@ -27,7 +33,7 @@ public class InventoryManager : MonoBehaviour, ISaveable
         UpdateQuestText();
     }
 
-    #region Public API (keeps your existing calls working)
+    #region Public API
 
     /// <summary>
     /// Try to pick up an item. Returns true if picked up.
@@ -52,16 +58,16 @@ public class InventoryManager : MonoBehaviour, ISaveable
         currentItem = item;
         Debug.Log($"[InventoryManager] Picked up {item.itemName}");
 
-        // When an item is collected, change quest text to "Get the item to the cabin"
+        // When an item is collected, show "Get the item to the cabin"
         SetQuestText_GetToCabin();
 
-        // --- AUDIO: broadcast collect SFX via EventManager (AudioManager should handle playback) ---
+        // Play item collect SFX via EventManager (AudioManager should handle actual playback)
         if (item.collectSound != null)
         {
             EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, item.collectSound);
         }
 
-        // --- EVENT: notify other systems that an item was collected (payload: ItemDataSO) ---
+        // Notify other systems that an item was collected (payload: ItemDataSO)
         EventManager.TriggerEvent(EventManager.ON_ITEM_COLLECTED, item);
 
         return true;
@@ -80,16 +86,17 @@ public class InventoryManager : MonoBehaviour, ISaveable
         }
 
         Debug.Log($"[InventoryManager] Deposited {currentItem.itemName}");
+
         // Clear the carried item
         currentItem = null;
 
         // Increment delivered counter (but clamp to totalItemsNeeded)
         deliveredCount = Mathf.Min(totalItemsNeeded, deliveredCount + 1);
 
-        // Update quest text to next target (unless done)
+        // Update quest UI
         UpdateQuestText();
 
-        // --- AUDIO: broadcast deposit SFX via EventManager (AudioManager should handle playback) ---
+        // Play deposit SFX via EventManager
         if (depositSound != null)
         {
             EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, depositSound);
@@ -102,7 +109,7 @@ public class InventoryManager : MonoBehaviour, ISaveable
         }
         else
         {
-            ShowFeedback($"Delivered!");
+            ShowFeedback("Delivered!");
         }
 
         return true;
@@ -110,7 +117,7 @@ public class InventoryManager : MonoBehaviour, ISaveable
 
     #endregion
 
-    #region UI helpers
+    #region UI Helpers
 
     private void UpdateQuestText()
     {
@@ -149,7 +156,7 @@ public class InventoryManager : MonoBehaviour, ISaveable
         if (feedbackText != null)
         {
             feedbackText.text = message;
-            // optionally start a coroutine to clear it after a second — keep lightweight here
+            // clear after short time
             CancelInvoke(nameof(ClearFeedback));
             Invoke(nameof(ClearFeedback), 1.5f);
         }
@@ -161,7 +168,9 @@ public class InventoryManager : MonoBehaviour, ISaveable
     }
 
     #endregion
-    
+
+    #region Saving / Loading (ISaveable)
+
     public void SaveData(ref GameData data)
     {
         data.itemsDelivered = this.deliveredCount;
@@ -181,15 +190,18 @@ public class InventoryManager : MonoBehaviour, ISaveable
         this.deliveredCount = data.itemsDelivered;
         UpdateQuestText(); // Refresh UI
 
-        // Restore held item
-        if (!string.IsNullOrEmpty(data.currentHeldItemID))
+        // Restore held item (if any)
+        if (!string.IsNullOrEmpty(data.currentHeldItemID) && PersistenceManager.Instance != null)
         {
-            // Ask PersistenceManager to find the SO for us
             ItemDataSO item = PersistenceManager.Instance.GetItemByID(data.currentHeldItemID);
             if (item != null)
             {
                 this.currentItem = item;
-                Debug.Log($"[Load] Restored held item: {item.itemName}");
+                Debug.Log($"[InventoryManager] Restored held item: {item.itemName}");
+            }
+            else
+            {
+                this.currentItem = null;
             }
         }
         else
@@ -197,4 +209,6 @@ public class InventoryManager : MonoBehaviour, ISaveable
             this.currentItem = null;
         }
     }
+
+    #endregion
 }

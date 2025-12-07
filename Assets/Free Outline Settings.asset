@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-2910672220569383109
+--- !u!114 &-7593127169154241246
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -25,9 +25,9 @@ MonoBehaviour:
   enableOcclusion: 0
   occludedColor: {r: 1, g: 0, b: 0, a: 1}
   blendMode: 0
-  extrusionMethod: 7
+  extrusionMethod: 4
   scaling: 0
-  width: 64.4
+  width: 15
   minWidth: 0
   scaleWithResolution: 0
   referenceResolution: 0
@@ -49,4 +49,4 @@ MonoBehaviour:
   injectionPoint: 600
   showInSceneView: 1
   outlines:
-  - {fileID: -2910672220569383109}
+  - {fileID: -7593127169154241246}
