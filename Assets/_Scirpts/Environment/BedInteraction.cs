@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 using System.Collections;
+using TMPro;
 
 public class BedInteraction : MonoBehaviour
 {
@@ -10,12 +10,12 @@ public class BedInteraction : MonoBehaviour
     [SerializeField] private Camera playerCamera;     // Main player camera
     [SerializeField] private MonoBehaviour playerMovement; // Your movement script
     [SerializeField] private CanvasGroup fadeCanvas;  // Fullscreen black canvas
-    [SerializeField] private Text interactionPrompt;  // Optional: Press E to Sleep
+    [SerializeField] private TMP_Text interactionPrompt;  // Press E to Sleep (TMP)
 
     [Header("Settings")]
     [SerializeField] private float cameraMoveDuration = 1.2f;
     [SerializeField] private float fadeDuration = 1.5f;
-    [SerializeField] private string nextSceneName = "DreamScene";
+    [SerializeField] private string nextSceneName = "Level 1 Final";
 
     private bool playerInRange = false;
     private bool isSleeping = false;

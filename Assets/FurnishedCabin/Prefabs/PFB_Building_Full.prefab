@@ -12610,6 +12610,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 35d0771ab6667a642b5ae8f12561bb3d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  bedCameraPoint: {fileID: 0}
+  playerCamera: {fileID: 0}
+  playerMovement: {fileID: 0}
+  fadeCanvas: {fileID: 0}
+  interactionPrompt: {fileID: 0}
+  cameraMoveDuration: 1.2
+  fadeDuration: 1.5
+  nextSceneName: Level 1 Final
 --- !u!1 &1000014048589844
 GameObject:
   m_ObjectHideFlags: 0
