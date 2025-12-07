@@ -1,14 +1,13 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using UnityEngine.Events;
 
-
 /// <summary>
-/// Passive Game Over (win) menu.
-/// - Listens for EventManager.ON_GAME_OVER to show the panel.
-/// - Exposes two buttons: NextLevel (load nextScene) and Quit.
-/// - Stops time and manages cursor while active.
+/// Robust Game Over (win) menu:
+/// - Subscribes to EventManager.ON_GAME_OVER
+/// - Also checks InventoryManager on Start (in case the event fired earlier)
+/// - Allows inspector override for requiredDeliveredToWin (0 = use InventoryManager setting)
 /// </summary>
 public class GameOverMenu : MonoBehaviour
 {
@@ -22,8 +21,15 @@ public class GameOverMenu : MonoBehaviour
     public string nextLevelSceneName = ""; // preferred: scene name
     public int nextLevelBuildIndex = -1;   // fallback: build index if >= 0
 
+    [Header("Game Completion")]
+    [Tooltip("If >0, this value overrides InventoryManager.totalItemsNeeded for deciding completion.")]
+    public int requiredDeliveredToWin = 0;
+
     [Header("Events")]
     public UnityEvent onGameOverShown;
+
+    private InventoryManager inventoryManager;
+    private bool gameOverShown = false;
 
     void Awake()
     {
@@ -43,31 +49,57 @@ public class GameOverMenu : MonoBehaviour
         EventManager.Unsubscribe(EventManager.ON_GAME_OVER, OnGameOverEvent);
     }
 
-    private void OnGameOverEvent(object[] data)
+    void Start()
     {
-        int delivered = -1, total = -1;
-        if (data != null && data.Length >= 2)
-        {
-            if (data[0] is int) delivered = (int)data[0];
-            if (data[1] is int) total = (int)data[1];
-        }
+        inventoryManager = FindObjectOfType<InventoryManager>();
 
-        // Use values to update UI if you want:
-        if (delivered >= 0 && total >= 0)
+        // Defensive: if inventoryManager exists we can check current state in case the event fired earlier
+        if (inventoryManager != null)
         {
-            // e.g. show "5 / 5" text somewhere (add a field for it)
-            Debug.Log($"GameOverMenu: delivered {delivered}/{total}");
-        }
+            int delivered = GetDeliveredCountFromInventory();
+            int target = GetRequiredToWin();
 
-        ShowGameOver();
+            if (delivered >= target)
+            {
+                // show (will also set Time.timeScale etc.)
+                ShowGameOver();
+            }
+        }
     }
 
+    // Event handler for EventManager.ON_GAME_OVER
+    private void OnGameOverEvent(object[] data)
+    {
+        // Extract delivered & total if present (not strictly required because we do a robust check with InventoryManager)
+        int delivered = -1, total = -1;
+        if (data != null)
+        {
+            if (data.Length >= 1 && data[0] is int) delivered = (int)data[0];
+            if (data.Length >= 2 && data[1] is int) total = (int)data[1];
+        }
+
+        // Optional logging
+        if (delivered >= 0 && total >= 0)
+            Debug.Log($"GameOverMenu: ON_GAME_OVER event received - delivered {delivered}/{total}");
+        else
+            Debug.Log("GameOverMenu: ON_GAME_OVER event received (payload missing or partial).");
+
+        // Final check: only show once
+        if (!gameOverShown)
+        {
+            ShowGameOver();
+        }
+    }
 
     /// <summary>
     /// Show the Game Over panel and pause the game.
+    /// Idempotent — Safe to call multiple times.
     /// </summary>
     public void ShowGameOver()
     {
+        if (gameOverShown) return;
+        gameOverShown = true;
+
         if (panelRoot != null) panelRoot.SetActive(true);
 
         // Stop gameplay
@@ -106,5 +138,52 @@ public class GameOverMenu : MonoBehaviour
 #else
         Application.Quit();
 #endif
+    }
+
+    // Public debug helper to force show
+    public void ForceShow()
+    {
+        ShowGameOver();
+    }
+
+    // Helper to get delivered count (requires your InventoryManager to expose it publicly)
+    private int GetDeliveredCountFromInventory()
+    {
+        if (inventoryManager == null) return 0;
+
+        // we try reflection-safe access in case the field is private. Best is to expose a getter on InventoryManager.
+        // For now attempt to access a public property or field name 'deliveredCount' or 'DeliveredCount' or call method.
+        var type = inventoryManager.GetType();
+        var field = type.GetField("deliveredCount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        if (field != null)
+            return (int)field.GetValue(inventoryManager);
+
+        var prop = type.GetProperty("DeliveredCount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+        if (prop != null)
+            return (int)prop.GetValue(inventoryManager);
+
+        // fallback: assume InventoryManager provides Save/Load only — return 0 and rely on event
+        Debug.LogWarning("GameOverMenu: Could not read deliveredCount from InventoryManager. Make sure InventoryManager exposes the delivered count or set requiredDeliveredToWin in this component.");
+        return 0;
+    }
+
+    private int GetRequiredToWin()
+    {
+        if (requiredDeliveredToWin > 0) return requiredDeliveredToWin;
+
+        if (inventoryManager != null)
+        {
+            var type = inventoryManager.GetType();
+            var field = type.GetField("totalItemsNeeded", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            if (field != null)
+                return (int)field.GetValue(inventoryManager);
+
+            var prop = type.GetProperty("TotalItemsNeeded", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (prop != null)
+                return (int)prop.GetValue(inventoryManager);
+        }
+
+        // default fallback
+        return 5;
     }
 }

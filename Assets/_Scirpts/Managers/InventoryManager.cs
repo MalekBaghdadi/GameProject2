@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Events;
 using TMPro;
 
 /// <summary>
@@ -25,8 +26,13 @@ public class InventoryManager : MonoBehaviour, ISaveable
     [Tooltip("Optional: sound played when an item is deposited to the cabin.")]
     [SerializeField] private AudioClip depositSound;
 
+    [Header("Events")]
+    [Tooltip("Called once when the quest is completed (useful for hooking VFX/SFX in inspector).")]
+    public UnityEvent onQuestCompleted;
+
     // Internal state
     private int deliveredCount = 0;
+    private bool questCompleted = false;
 
     private void Start()
     {
@@ -34,6 +40,13 @@ public class InventoryManager : MonoBehaviour, ISaveable
     }
 
     #region Public API
+
+    /// <summary>
+    /// Public read-only accessors so other systems can query state.
+    /// </summary>
+    public int DeliveredCount => deliveredCount;
+    public int TotalItemsNeeded => totalItemsNeeded;
+    public bool IsQuestCompleted => questCompleted;
 
     /// <summary>
     /// Try to pick up an item. Returns true if picked up.
@@ -85,6 +98,15 @@ public class InventoryManager : MonoBehaviour, ISaveable
             return false;
         }
 
+        // If already completed, still clear carried item and give feedback but don't change counters
+        if (questCompleted)
+        {
+            Debug.Log("[InventoryManager] Deposited after completion. Clearing carried item.");
+            currentItem = null;
+            ShowFeedback("Delivered!");
+            return true;
+        }
+
         Debug.Log($"[InventoryManager] Deposited {currentItem.itemName}");
 
         // Clear the carried item
@@ -103,8 +125,9 @@ public class InventoryManager : MonoBehaviour, ISaveable
         }
 
         // Optional: check completion
-        if (deliveredCount >= totalItemsNeeded)
+        if (deliveredCount >= totalItemsNeeded && !questCompleted)
         {
+            questCompleted = true;
             OnQuestCompleted();
         }
         else
@@ -149,6 +172,9 @@ public class InventoryManager : MonoBehaviour, ISaveable
 
         // Trigger the global game-over / level-complete event via EventManager
         EventManager.TriggerEvent(EventManager.ON_GAME_OVER, deliveredCount, totalItemsNeeded);
+
+        // Invoke inspector hook for VFX/SFX
+        onQuestCompleted?.Invoke();
     }
 
     private void ShowFeedback(string message)
@@ -189,6 +215,12 @@ public class InventoryManager : MonoBehaviour, ISaveable
     {
         this.deliveredCount = data.itemsDelivered;
         UpdateQuestText(); // Refresh UI
+
+        // If loading shows we've already completed, set flag so completion doesn't re-fire later
+        if (this.deliveredCount >= totalItemsNeeded)
+            questCompleted = true;
+        else
+            questCompleted = false;
 
         // Restore held item (if any)
         if (!string.IsNullOrEmpty(data.currentHeldItemID) && PersistenceManager.Instance != null)
