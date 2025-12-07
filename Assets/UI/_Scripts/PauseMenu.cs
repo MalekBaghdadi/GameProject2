@@ -71,6 +71,20 @@ public class PauseMenu : MonoBehaviour
             Time.timeScale = 1f;
         }
     }
+    
+    public void OnSavePressed()
+    {
+        if (PersistenceManager.Instance != null)
+        {
+            Debug.Log("PauseMenu: Manual Save triggered.");
+            PersistenceManager.Instance.SaveGame();
+        }
+        else
+        {
+            Debug.LogError("PauseMenu: PersistenceManager missing! Cannot save.");
+        }
+    }
+
 
     // Called by QuitButton OnClick
     public void OnQuitPressed()

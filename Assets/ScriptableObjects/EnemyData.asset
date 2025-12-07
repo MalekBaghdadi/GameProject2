@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: EnemyData
   m_EditorClassIdentifier: 
   sightRadius: 15
-  viewAngle: 90
+  viewAngle: 110
   audioRadius: 18
   wanderSpeed: 2
   chaseSpeed: 4.5
-  attackRange: 1.6
+  attackRange: 2.5
   attackCooldown: 1.2
   damage: 50
   interestIncreaseRate: 0.5
