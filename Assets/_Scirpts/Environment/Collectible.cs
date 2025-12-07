@@ -4,6 +4,8 @@ public class Collectible : MonoBehaviour, ISaveable
 {
     [SerializeField] private string uniqueID;
     [SerializeField] private ItemDataSO itemData;
+    [SerializeField] private AudioClip pickupSFX;
+
     
     // Helper to generate ID in Editor
     [ContextMenu("Generate ID")]
@@ -67,6 +69,19 @@ public class Collectible : MonoBehaviour, ISaveable
         else
         {
             Debug.Log("[Collectible] Inventory is full or item rejected.");
+        }
+        if (collectionSuccessful)
+        {
+            Debug.Log($"[Collectible] Collected: {itemData.itemName}");
+
+            // PLAY PICKUP SOUND
+            if (pickupSFX != null)
+            {
+                EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, new object[] { pickupSFX, 1f });
+            }
+
+            // Disable object
+            gameObject.SetActive(false);
         }
     }
     
