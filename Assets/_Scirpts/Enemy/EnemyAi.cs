@@ -6,6 +6,8 @@ using UnityEngine.AI;
 public class EnemyAI : MonoBehaviour, ISaveable
 {
     public EnemyData data; // assign in inspector (tunable values)
+    
+    private MimicSpace.Mimic mimicScript;
 
     NavMeshAgent agent;
     Transform player;
@@ -55,6 +57,20 @@ public class EnemyAI : MonoBehaviour, ISaveable
     // attacking
     bool canAttack = true;
     bool isAttacking = false;
+    
+    
+    [Header("Proximity Audio")]
+    [Tooltip("Sound to play when the enemy is close to the player.")]
+    [SerializeField] private AudioClip proximityClip;
+    [Tooltip("Distance (meters) at which the proximity sound will play.")]
+    [SerializeField] private float proximityDistance = 6f;
+    [Tooltip("If player stays within proximity, repeat the sound every this many seconds (0 = play only once on enter).")]
+    [SerializeField] private float proximityRepeatInterval = 2f;
+
+    private AudioSource proximitySource;
+    private float proximityTimer = 0f;
+    private bool playerWasInRange = false;
+
 
     void Awake()
     {
@@ -62,6 +78,25 @@ public class EnemyAI : MonoBehaviour, ISaveable
         anim = GetComponent<Animator>();
         // Get the player position safely
         player = GameObject.FindGameObjectWithTag("Player")?.transform;
+        
+        mimicScript = GetComponent<MimicSpace.Mimic>();
+        
+        // create/get audio source used for proximity sounds
+        proximitySource = GetComponent<AudioSource>();
+        if (proximitySource == null)
+        {
+            proximitySource = gameObject.AddComponent<AudioSource>();
+            proximitySource.playOnAwake = false;
+            proximitySource.spatialBlend = 1f; // 3D sound
+            proximitySource.rolloffMode = AudioRolloffMode.Linear;
+            proximitySource.maxDistance = Mathf.Max(10f, proximityDistance * 2f);
+        }
+        
+        if (proximityClip != null)
+        {
+            proximitySource.clip = proximityClip;
+        }
+
 
         if (data != null)
             agent.speed = data.wanderSpeed;
@@ -76,6 +111,56 @@ public class EnemyAI : MonoBehaviour, ISaveable
 
         bool seen = CheckSight();             // distance & angle detection (interest updated here)
         bool heard = CheckAudioDistance();
+        
+        if (mimicScript != null && agent != null)
+        {
+            // We pass the agent's desired velocity or actual velocity
+            mimicScript.velocity = agent.velocity;
+        }
+        
+        // --- Proximity sound handling ---
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+
+        if (distToPlayer <= proximityDistance)
+        {
+            if (!playerWasInRange)
+            {
+                // Player just entered range
+                playerWasInRange = true;
+                proximityTimer = 0f; // allow immediate play below
+            }
+
+            // If interval == 0 -> play only on enter
+            if (proximityRepeatInterval <= 0f)
+            {
+                // play only on initial enter
+                if (proximityTimer == proximityRepeatInterval) // only on first frame after entering
+                {
+                    if (proximityClip != null) proximitySource.PlayOneShot(proximityClip);
+                }
+                // set timer negative so it won't play again while in range
+                proximityTimer = -1f;
+            }
+            else
+            {
+                proximityTimer -= Time.deltaTime;
+                if (proximityTimer <= 0f)
+                {
+                    if (proximityClip != null) proximitySource.PlayOneShot(proximityClip);
+                    proximityTimer = proximityRepeatInterval;
+                }
+            }
+        }
+        else
+        {
+            // player left range
+            if (playerWasInRange)
+            {
+                playerWasInRange = false;
+                proximityTimer = 0f;
+            }
+        }
+
 
         switch (state)
         {
@@ -503,6 +588,10 @@ public class EnemyAI : MonoBehaviour, ISaveable
         // Audio radius
         Gizmos.color = new Color(0.5f, 1f, 0.5f, 0.25f);
         Gizmos.DrawWireSphere(transform.position, data.audioRadius);
+        
+        // Proximity sphere gizmo (customizable)
+        Gizmos.color = new Color(1f, 0.2f, 0.8f, 0.12f); // translucent magenta-ish
+        Gizmos.DrawWireSphere(transform.position, proximityDistance);
 
         // Attack range (red)
         Gizmos.color = Color.red;
