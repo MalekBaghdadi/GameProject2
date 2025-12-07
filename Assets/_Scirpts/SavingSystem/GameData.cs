@@ -27,9 +27,9 @@ public class GameData
         itemsDelivered = 0;
         currentHeldItemID = "";
         collectedItemIDs = new List<string>();
-        playerPosition = new Vector3(0, 1, 0); // Default spawn
+        playerPosition = new Vector3(577, 12, 699); // Default spawn
         playerVerticalLookRotation = 0f; // New default
-        enemyPosition = new Vector3(10, 1, 10); // Default enemy spawn
-        foxPosition = new Vector3(1f, 1f, 0f);
+        enemyPosition = new Vector3(572, 10, 711); // Default enemy spawn
+        foxPosition = new Vector3(577, 12, 703);
     }
 }
