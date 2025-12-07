@@ -13,8 +13,10 @@ MonoBehaviour:
   m_Name: PlayerStats
   m_EditorClassIdentifier: 
   MaxHealth: 100
-  BaseMovementSpeed: 5
+  BaseMovementSpeed: 7
   SprintMultiplier: 1.8
   MaxStamina: 100
   StaminaConsumptionRate: 15
   StaminaRegenRate: 10
+  currentHealth: 100
+  currentStamina: 100
