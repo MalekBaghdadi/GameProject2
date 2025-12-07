@@ -71,6 +71,16 @@ public class EnemyAI : MonoBehaviour, ISaveable
     private float proximityTimer = 0f;
     private bool playerWasInRange = false;
 
+    [Header("Attack Audio")]
+    [Tooltip("Sound to play when this enemy performs an attack (played at wind-up/hit).")]
+    [SerializeField] private AudioClip attackClip;
+    [Tooltip("Base pitch to apply to the attack sound.")]
+    [SerializeField] private float attackPitch = 1f;
+    [Tooltip("Random pitch variance applied every time (±).")]
+    [SerializeField] private float attackPitchVariance = 0.0f;
+
+    private AudioSource attackSource;
+
     // round-robin index for cycling through proximityClips
     private int nextProximityIndex = 0;
 
@@ -93,6 +103,13 @@ public class EnemyAI : MonoBehaviour, ISaveable
             proximitySource.rolloffMode = AudioRolloffMode.Linear;
             proximitySource.maxDistance = Mathf.Max(10f, proximityDistance * 2f);
         }
+        
+        // create a dedicated audio source for attack sounds (separate so we can set pitch independently)
+        attackSource = gameObject.AddComponent<AudioSource>();
+        attackSource.playOnAwake = false;
+        attackSource.spatialBlend = 1f; // 3D sound
+        attackSource.rolloffMode = AudioRolloffMode.Linear;
+        attackSource.maxDistance = Mathf.Max(10f, proximityDistance * 2f);
 
         // ensure index is valid
         nextProximityIndex = 0;
@@ -443,6 +460,14 @@ public class EnemyAI : MonoBehaviour, ISaveable
         // wind-up time before applying damage
         float windup = 0.25f;
         yield return new WaitForSeconds(windup);
+        
+        // play attack sound at wind-up (so player hears it before damage)
+        if (GameState.IsGameStarted && attackClip != null && attackSource != null)
+        {
+            attackSource.pitch = attackPitch + Random.Range(-attackPitchVariance, attackPitchVariance);
+            attackSource.PlayOneShot(attackClip);
+        }
+
 
         // Apply damage if still in range
         if (Vector3.Distance(transform.position, player.position) <= data.attackRange + 0.25f)
