@@ -26252,7 +26252,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uniqueID: 
   itemData: {fileID: 11400000, guid: 15353a2c6b0a70041a7cc19c41ee3f6d, type: 2}
-  sparkleInstance: {fileID: 0}
+  pickupSFX: {fileID: 0}
+  sparkleInstance: {fileID: 8280197988426118310, guid: 1862e27f9301b5b45acdbb903a536371,
+    type: 3}
 --- !u!65 &288792242
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -67793,7 +67795,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uniqueID: 
   itemData: {fileID: 11400000, guid: a4f007351c9323a469f52c2e83a286a2, type: 2}
-  sparkleInstance: {fileID: 0}
+  pickupSFX: {fileID: 0}
+  sparkleInstance: {fileID: 8280197988426118310, guid: 1862e27f9301b5b45acdbb903a536371,
+    type: 3}
 --- !u!1001 &686375019
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -79817,7 +79821,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uniqueID: 
   itemData: {fileID: 11400000, guid: 1f568f4af2f1f0c459599c264adf3ff8, type: 2}
-  sparkleInstance: {fileID: 0}
+  pickupSFX: {fileID: 0}
+  sparkleInstance: {fileID: 8280197988426118310, guid: 1862e27f9301b5b45acdbb903a536371,
+    type: 3}
 --- !u!4 &802931356 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4455260040568989276, guid: 055bd4acb2879254893ecf34bff686f4,
@@ -83086,8 +83092,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   defaultButton: {fileID: 17795022}
-  bgmSlider: {fileID: 1000367474}
-  sfxSlider: {fileID: 1208969143}
+  bgmSlider: {fileID: 0}
+  sfxSlider: {fileID: 0}
 --- !u!4 &841681802 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1681224996073516063, guid: bc51859a359a6124d9240419fc73341a,
@@ -97570,7 +97576,7 @@ MonoBehaviour:
   player: {fileID: 1618342271}
   playerControlComponents:
   - {fileID: 1618342277}
-  backgroundMusic: {fileID: 8300000, guid: a12b0396435c84dce968a30ed8a04279, type: 3}
+  backgroundMusic: {fileID: 0}
 --- !u!4 &980105396 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1681224996073516063, guid: bc51859a359a6124d9240419fc73341a,
@@ -121570,7 +121576,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uniqueID: 
   itemData: {fileID: 11400000, guid: cd9bc4f8f0061c84abb74b256a7d872f, type: 2}
-  sparkleInstance: {fileID: 0}
+  pickupSFX: {fileID: 0}
+  sparkleInstance: {fileID: 8280197988426118310, guid: 1862e27f9301b5b45acdbb903a536371,
+    type: 3}
 --- !u!65 &1182973521
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -138581,7 +138589,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uniqueID: 
   itemData: {fileID: 11400000, guid: e6933af2265253f4799d08c75dba5f56, type: 2}
-  sparkleInstance: {fileID: 0}
+  pickupSFX: {fileID: 0}
+  sparkleInstance: {fileID: 8280197988426118310, guid: 1862e27f9301b5b45acdbb903a536371,
+    type: 3}
 --- !u!4 &1344476351 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1681224996073516063, guid: bc51859a359a6124d9240419fc73341a,
@@ -162724,7 +162734,7 @@ PrefabInstance:
     - target: {fileID: 8675915457954794080, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8675915457954794082, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
@@ -162734,17 +162744,17 @@ PrefabInstance:
     - target: {fileID: 8675915457954794082, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 600
+      value: 571.7
       objectReference: {fileID: 0}
     - target: {fileID: 8675915457954794082, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 10
+      value: 9.082
       objectReference: {fileID: 0}
     - target: {fileID: 8675915457954794082, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 682
+      value: 710.2
       objectReference: {fileID: 0}
     - target: {fileID: 8675915457954794082, guid: 3fc537e92bf3d2449b5be72cfd6cb447,
         type: 3}
@@ -165234,8 +165244,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1618342271}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 576.3, y: 11.2, z: 708.7}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 576.3, y: 11.2, z: 698.7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -165243,7 +165253,7 @@ Transform:
   - {fileID: 172158020}
   - {fileID: 1795866747}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!114 &1618342276
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -165468,12 +165478,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cam: {fileID: 330585545}
-  promptText: {fileID: 1286678408}
+  promptText: {fileID: 0}
   interactRange: 3
   interactAngle: 30
   interactLayer:
     serializedVersion: 2
-    m_Bits: 192
+    m_Bits: 0
   defaultLayerName: Collectible
   highlightLayerName: Interactables
 --- !u!1001 &1619962455
@@ -187734,17 +187744,12 @@ MonoBehaviour:
   searchDuration: 4
   searchRadius: 4
   lastKnownArrivalThreshold: 1.2
-  proximityClips:
-  - {fileID: 8300000, guid: 35492560ac42448699b740b989252276, type: 3}
-  - {fileID: 8300000, guid: ce133fb390f3b4fc58b001737c83bed4, type: 3}
-  - {fileID: 8300000, guid: d4458288b3245418dab63bade161a1c0, type: 3}
-  - {fileID: 8300000, guid: ecbfab02031df4ec2a6951347258fe57, type: 3}
-  - {fileID: 8300000, guid: 557c90f0111c040a08ad7d8f1cdc7e20, type: 3}
-  proximityDistance: 30
-  proximityRepeatInterval: 15
-  attackClip: {fileID: 8300000, guid: d6492268af8fd4f619632c574eb4c842, type: 3}
-  attackPitch: 1.3
-  attackPitchVariance: 0.15
+  proximityClips: []
+  proximityDistance: 6
+  proximityRepeatInterval: 2
+  attackClip: {fileID: 0}
+  attackPitch: 1
+  attackPitchVariance: 0
 --- !u!195 &1857486948
 NavMeshAgent:
   m_ObjectHideFlags: 0

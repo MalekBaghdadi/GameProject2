@@ -11,6 +11,10 @@ public class CabinController : MonoBehaviour
     [Tooltip("Drag the parent objects for each build level here, in the order they should appear.")]
     [SerializeField] private GameObject[] constructionStages;
 
+    [Header("Audio")]
+    [Tooltip("Sound played when a new cabin stage is activated.")]
+    [SerializeField] private AudioClip cabinUpgradeSound;
+
     // Internal state tracking
     private int currentStageIndex = 0;
     private bool isPlayerInRange = false;
@@ -39,10 +43,12 @@ public class CabinController : MonoBehaviour
 
     private void Update()
     {
+        // Debug quick-check
         {
             if (Input.GetKeyDown(KeyCode.E))
                 Debug.Log("E Pressed anywhere");
         }
+
         // Only check for input if the player is actually in the trigger zone
         if (isPlayerInRange)
         {
@@ -50,12 +56,12 @@ public class CabinController : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.E))
             {
                 // Call the interaction logic
-                Interact(); 
+                Interact();
                 Debug.Log("Interacting with cabin!!!!!");
             }
         }
     }
-    
+
     // Check when a trigger enters the area
     private void OnTriggerEnter(Collider other)
     {
@@ -104,7 +110,7 @@ public class CabinController : MonoBehaviour
             inventoryManager.DepositItem(); // Call this to trigger the 'carrying nothing' feedback
             return;
         }
-        
+
         // 3. Attempt to deposit the item (This also handles inventory clearance and delivered count)
         if (inventoryManager.DepositItem())
         {
@@ -127,7 +133,13 @@ public class CabinController : MonoBehaviour
                 stageToBuild.SetActive(true);
                 Debug.Log($"Item deposited! Constructed Cabin Level {currentStageIndex + 1}.");
             }
-            
+
+            // --- AUDIO: Play cabin upgrade sound (via EventManager so centralized AudioManager handles SFX) ---
+            if (cabinUpgradeSound != null)
+            {
+                EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, cabinUpgradeSound);
+            }
+
             // Increment the index so the next deposit activates the next object
             currentStageIndex++;
 
