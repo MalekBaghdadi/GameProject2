@@ -60,8 +60,8 @@ public class EnemyAI : MonoBehaviour, ISaveable
     
     
     [Header("Proximity Audio")]
-    [Tooltip("Sound to play when the enemy is close to the player.")]
-    [SerializeField] private AudioClip proximityClip;
+    [Tooltip("List of sounds to play when the enemy is close to the player. Will cycle through them.")]
+    [SerializeField] private AudioClip[] proximityClips; 
     [Tooltip("Distance (meters) at which the proximity sound will play.")]
     [SerializeField] private float proximityDistance = 6f;
     [Tooltip("If player stays within proximity, repeat the sound every this many seconds (0 = play only once on enter).")]
@@ -71,6 +71,8 @@ public class EnemyAI : MonoBehaviour, ISaveable
     private float proximityTimer = 0f;
     private bool playerWasInRange = false;
 
+    // round-robin index for cycling through proximityClips
+    private int nextProximityIndex = 0;
 
     void Awake()
     {
@@ -91,13 +93,10 @@ public class EnemyAI : MonoBehaviour, ISaveable
             proximitySource.rolloffMode = AudioRolloffMode.Linear;
             proximitySource.maxDistance = Mathf.Max(10f, proximityDistance * 2f);
         }
+
+        // ensure index is valid
+        nextProximityIndex = 0;
         
-        if (proximityClip != null)
-        {
-            proximitySource.clip = proximityClip;
-        }
-
-
         if (data != null)
             agent.speed = data.wanderSpeed;
 
@@ -119,47 +118,58 @@ public class EnemyAI : MonoBehaviour, ISaveable
         }
         
         // --- Proximity sound handling ---
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
-
-        if (distToPlayer <= proximityDistance)
+        // --- Proximity sound handling (only when game actually started) ---
+        if (!GameState.IsGameStarted)
         {
-            if (!playerWasInRange)
-            {
-                // Player just entered range
-                playerWasInRange = true;
-                proximityTimer = 0f; // allow immediate play below
-            }
-
-            // If interval == 0 -> play only on enter
-            if (proximityRepeatInterval <= 0f)
-            {
-                // play only on initial enter
-                if (proximityTimer == proximityRepeatInterval) // only on first frame after entering
-                {
-                    if (proximityClip != null) proximitySource.PlayOneShot(proximityClip);
-                }
-                // set timer negative so it won't play again while in range
-                proximityTimer = -1f;
-            }
-            else
-            {
-                proximityTimer -= Time.deltaTime;
-                if (proximityTimer <= 0f)
-                {
-                    if (proximityClip != null) proximitySource.PlayOneShot(proximityClip);
-                    proximityTimer = proximityRepeatInterval;
-                }
-            }
+            // Ensure proximity state is reset while still in the menu/paused so it doesn't immediately trigger on start.
+            playerWasInRange = false;
+            proximityTimer = 0f;
         }
         else
         {
-            // player left range
-            if (playerWasInRange)
+            float distToPlayer = Vector3.Distance(transform.position, player.position);
+
+            if (distToPlayer <= proximityDistance)
             {
-                playerWasInRange = false;
-                proximityTimer = 0f;
+                if (!playerWasInRange)
+                {
+                    // Player just entered range
+                    playerWasInRange = true;
+                    // allow immediate play on enter (unless repeat interval is > 0 and we want to wait)
+                    proximityTimer = 0f;
+                }
+
+                if (proximityRepeatInterval <= 0f)
+                {
+                    // play only on initial enter (guard against multiple frames)
+                    if (proximityTimer == 0f)
+                    {
+                        PlayNextProximityClip();
+                    }
+                    // set to -1 to indicate we've played the one-shot for this stay-in-range
+                    proximityTimer = -1f;
+                }
+                else
+                {
+                    proximityTimer -= Time.deltaTime;
+                    if (proximityTimer <= 0f)
+                    {
+                        PlayNextProximityClip();
+                        proximityTimer = proximityRepeatInterval;
+                    }
+                }
+            }
+            else
+            {
+                // player left range -> reset so it will re-trigger on next enter
+                if (playerWasInRange)
+                {
+                    playerWasInRange = false;
+                    proximityTimer = 0f;
+                }
             }
         }
+
 
 
         switch (state)
@@ -185,6 +195,20 @@ public class EnemyAI : MonoBehaviour, ISaveable
         //if (anim != null)
          //   anim.SetFloat("Speed", agent.velocity.magnitude);
     }
+    
+    // helper: choose next clip and play it (round-robin)
+    void PlayNextProximityClip()
+    {
+        if (proximitySource == null || proximityClips == null || proximityClips.Length == 0) return;
+
+        AudioClip clip = proximityClips[nextProximityIndex];
+        if (clip != null)
+        {
+            proximitySource.PlayOneShot(clip);
+        }
+        nextProximityIndex = (nextProximityIndex + 1) % proximityClips.Length;
+    }
+
 
     #region Searching
     void SearchingUpdate(bool seen, bool heard)
