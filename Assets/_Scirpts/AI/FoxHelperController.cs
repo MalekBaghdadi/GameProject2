@@ -25,15 +25,18 @@ public class FoxHelperController : MonoBehaviour, ISaveable
     [SerializeField] private float itemShowTimeout = 20f;
     [SerializeField] private float itemMemoryCooldown = 45f;
 
-    [Header("Audio Clips")]
-    [SerializeField] private AudioClip barkItemFound;
-    [SerializeField] private AudioClip barkBearWarning;
-    [SerializeField] private AudioClip whimperRetreat;
+    // ================= AUDIO =================
+
+    [Header("Audio Clips (Lists)")]
+    [SerializeField] private List<AudioClip> itemFoundBarks = new();
+    [SerializeField] private List<AudioClip> bearWarningBarks = new();
+    [SerializeField] private List<AudioClip> whimperClips = new();
 
     [Header("Audio Wave Settings")]
     [SerializeField] private int itemFoundBarkWaves = 3;
     [SerializeField] private int bearWarningBarkWaves = 2;
     [SerializeField] private int whimperWaves = 2;
+
     [SerializeField] private float waveIntervalMin = 0.25f;
     [SerializeField] private float waveIntervalMax = 0.45f;
     [SerializeField] private float pitchMin = 0.95f;
@@ -53,7 +56,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
     private Vector3 currentItemPos;
     private float timeAtItem;
 
-    private Dictionary<GameObject, float> shownItems = new Dictionary<GameObject, float>();
+    private Dictionary<GameObject, float> shownItems = new();
     private float lastBearWarningTime = -999f;
 
     private FoxState state = FoxState.WanderNearPlayer;
@@ -115,25 +118,25 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         }
     }
 
-    // ---------------- BEAR ----------------
+    // ================= BEAR =================
 
     private void CheckBear()
     {
         if (!bear) return;
 
-        float dPlayer = Vector3.Distance(player.position, bear.position);
-        float dFox = Vector3.Distance(transform.position, bear.position);
+        float distPlayer = Vector3.Distance(player.position, bear.position);
+        float distFox = Vector3.Distance(transform.position, bear.position);
 
-        if (dPlayer <= bearDangerRadius)
+        if (distPlayer <= bearDangerRadius)
         {
             if (state != FoxState.FleeingFromBear)
                 StartFleeing();
         }
-        else if (dFox <= bearDetectionRadius || dPlayer <= bearDetectionRadius)
+        else if (distFox <= bearDetectionRadius || distPlayer <= bearDetectionRadius)
         {
-            if (Time.time - lastBearWarningTime > bearWarningCooldown)
+            if (Time.time - lastBearWarningTime >= bearWarningCooldown)
             {
-                PlaySoundWaves(barkBearWarning, bearWarningBarkWaves);
+                PlaySoundWaves(bearWarningBarks, bearWarningBarkWaves);
                 animator.SetTrigger("Bark");
                 lastBearWarningTime = Time.time;
             }
@@ -147,8 +150,8 @@ public class FoxHelperController : MonoBehaviour, ISaveable
 
         agent.speed *= 1.3f;
         agent.stoppingDistance = 2f;
-        PlaySoundWaves(whimperRetreat, whimperWaves);
 
+        PlaySoundWaves(whimperClips, whimperWaves);
         animator.SetTrigger("Fear");
     }
 
@@ -163,7 +166,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         }
     }
 
-    // ---------------- WANDER ----------------
+    // ================= WANDER =================
 
     private void StartWandering()
     {
@@ -196,7 +199,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         if (item) StartInvestigating(item);
     }
 
-    // ---------------- ITEM ----------------
+    // ================= ITEM =================
 
     private GameObject FindNearestCollectible()
     {
@@ -204,16 +207,17 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         float best = itemDetectionRadius;
         GameObject result = null;
 
-        foreach (var i in items)
+        foreach (var item in items)
         {
-            if (shownItems.ContainsKey(i) && Time.time - shownItems[i] < itemMemoryCooldown)
+            if (shownItems.ContainsKey(item) &&
+                Time.time - shownItems[item] < itemMemoryCooldown)
                 continue;
 
-            float d = Vector3.Distance(transform.position, i.transform.position);
+            float d = Vector3.Distance(transform.position, item.transform.position);
             if (d < best)
             {
                 best = d;
-                result = i;
+                result = item;
             }
         }
         return result;
@@ -223,6 +227,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
     {
         StopWander();
         state = FoxState.InvestigatingItem;
+
         currentItem = item;
         currentItemPos = item.transform.position;
 
@@ -233,7 +238,11 @@ public class FoxHelperController : MonoBehaviour, ISaveable
 
     private void InvestigatingUpdate()
     {
-        if (!currentItem) { StartWandering(); return; }
+        if (!currentItem)
+        {
+            StartWandering();
+            return;
+        }
 
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             ArriveAtItem();
@@ -247,7 +256,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         state = FoxState.ShowingItem;
         timeAtItem = 0f;
 
-        PlaySoundWaves(barkItemFound, itemFoundBarkWaves);
+        PlaySoundWaves(itemFoundBarks, itemFoundBarkWaves);
         animator.SetTrigger("FoundItem");
 
         HighlightItem(currentItem);
@@ -255,54 +264,21 @@ public class FoxHelperController : MonoBehaviour, ISaveable
 
     private void ShowingItemUpdate()
     {
-        if (!currentItem) { StartWandering(); return; }
+        if (!currentItem)
+        {
+            StartWandering();
+            return;
+        }
 
         timeAtItem += Time.deltaTime;
 
-        if (Vector3.Distance(player.position, currentItemPos) <= playerItemProximity)
-        {
-            MarkShown(currentItem);
-            StartWandering();
-        }
-
-        if (timeAtItem >= itemShowTimeout)
+        if (Vector3.Distance(player.position, currentItemPos) <= playerItemProximity ||
+            timeAtItem >= itemShowTimeout)
         {
             MarkShown(currentItem);
             StartWandering();
         }
     }
-    
-    private void GuidingUpdate()
-    {
-        if (agent.pathPending)
-            return;
-
-        // If we reached the target point, idle and wait
-        if (agent.remainingDistance <= agent.stoppingDistance)
-        {
-            agent.ResetPath();
-
-            if (animator != null)
-            {
-                animator.SetFloat("Speed", 0f);
-                animator.SetBool("IsGuiding", true);
-            }
-        }
-
-        // Safety: if player gets too far, abort guiding
-        if (player != null)
-        {
-            float distToPlayer = Vector3.Distance(transform.position, player.position);
-            if (distToPlayer > playerAbandonDistance)
-            {
-                if (animator != null)
-                    animator.SetBool("IsGuiding", false);
-
-                StartWandering();
-            }
-        }
-    }
-
 
     private void MarkShown(GameObject item)
     {
@@ -312,51 +288,78 @@ public class FoxHelperController : MonoBehaviour, ISaveable
 
     private void CleanShownItems()
     {
-        var dead = new List<GameObject>();
+        List<GameObject> toRemove = new();
+
         foreach (var kv in shownItems)
             if (!kv.Key || Time.time - kv.Value > itemMemoryCooldown)
-                dead.Add(kv.Key);
+                toRemove.Add(kv.Key);
 
-        foreach (var d in dead)
-            shownItems.Remove(d);
+        foreach (var item in toRemove)
+            shownItems.Remove(item);
     }
 
-    // ---------------- AUDIO ----------------
+    // ================= GUIDING =================
 
-    private void PlaySoundWaves(AudioClip clip, int waves)
+    private void GuidingUpdate()
     {
-        if (!clip || waves <= 0) return;
+        if (agent.pathPending) return;
+
+        if (agent.remainingDistance <= agent.stoppingDistance)
+        {
+            agent.ResetPath();
+            animator.SetBool("IsGuiding", true);
+        }
+
+        if (Vector3.Distance(transform.position, player.position) > playerAbandonDistance)
+        {
+            animator.SetBool("IsGuiding", false);
+            StartWandering();
+        }
+    }
+
+    // ================= AUDIO CORE =================
+
+    private void PlaySoundWaves(List<AudioClip> clips, int waves)
+    {
+        if (clips == null || clips.Count == 0 || waves <= 0)
+            return;
 
         if (audioWaveCoroutine != null)
             StopCoroutine(audioWaveCoroutine);
 
-        audioWaveCoroutine = StartCoroutine(SoundWaveRoutine(clip, waves));
+        audioWaveCoroutine = StartCoroutine(SoundWaveRoutine(clips, waves));
     }
 
-    private IEnumerator SoundWaveRoutine(AudioClip clip, int waves)
+    private IEnumerator SoundWaveRoutine(List<AudioClip> clips, int waves)
     {
         for (int i = 0; i < waves; i++)
         {
+            AudioClip clip = clips[Random.Range(0, clips.Count)];
             audioSource.pitch = Random.Range(pitchMin, pitchMax);
             audioSource.PlayOneShot(clip);
+
             yield return new WaitForSeconds(Random.Range(waveIntervalMin, waveIntervalMax));
         }
+
         audioSource.pitch = 1f;
     }
 
-    // ---------------- EVENTS ----------------
+    // ================= EVENTS =================
 
     private void OnHintStart(object[] data)
     {
         if (data.Length > 0 && data[0] is Vector3 pos)
         {
+            StopWander();
             state = FoxState.GuidingToItem;
+            agent.stoppingDistance = itemStoppingDistance;
             agent.SetDestination(pos);
         }
     }
 
     private void OnHintEnd(object[] data)
     {
+        animator.SetBool("IsGuiding", false);
         StartWandering();
     }
 
@@ -366,7 +369,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
             StartWandering();
     }
 
-    // ---------------- UTIL ----------------
+    // ================= UTIL =================
 
     private static Vector3 RandomNavSphere(Vector3 origin, float dist)
     {
@@ -385,7 +388,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         EventManager.TriggerEvent("ON_FOX_UNMARKED_ITEM", item);
     }
 
-    // ---------------- SAVE ----------------
+    // ================= SAVE =================
 
     public void SaveData(ref GameData data)
     {
