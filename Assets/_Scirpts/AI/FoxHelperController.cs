@@ -8,67 +8,57 @@ using System.Collections.Generic;
 [RequireComponent(typeof(AudioSource))]
 public class FoxHelperController : MonoBehaviour, ISaveable
 {
-    [Header("Configuration")]
-    [SerializeField] private float wanderRadius = 8f;
-    [SerializeField] private float wanderInterval = 4f;
-    [SerializeField] private float itemDetectionRadius = 15f;
-    [SerializeField] private float itemStoppingDistance = 1.2f;
-    [SerializeField] private float playerAbandonDistance = 25f;
-    [SerializeField] private float playerItemProximity = 5f;
+    // ================= CONFIG =================
 
-    [Header("Bear Warning System")]
-    [SerializeField] private float bearDetectionRadius = 20f;
-    [SerializeField] private float bearDangerRadius = 12f;
-    [SerializeField] private float bearWarningCooldown = 5f;
+    [Header("Core References")]
+    [SerializeField] private Transform player;
+    [SerializeField] private Transform cabin;
 
-    [Header("Behavior Tuning")]
-    [SerializeField] private float itemShowTimeout = 20f;
-    [SerializeField] private float itemMemoryCooldown = 45f;
+    [Tooltip("Assign ALL collectible item transforms here")]
+    [SerializeField] private List<Transform> itemTargets = new();
+
+    [Header("Movement")]
+    [SerializeField] private float guidingRadius = 2.5f;
+    [SerializeField] private float followSpeed = 4f;
+    [SerializeField] private float rotationSpeed = 8f;
+
+    [Header("Arrival Thresholds")]
+    [SerializeField] private float reachedTargetDistance = 1.5f;
+    [SerializeField] private float reachedCabinDistance = 2f;
 
     // ================= AUDIO =================
 
-    [Header("Audio Clips (Lists)")]
+    [Header("Audio")]
     [SerializeField] private List<AudioClip> itemFoundBarks = new();
-    [SerializeField] private List<AudioClip> bearWarningBarks = new();
-    [SerializeField] private List<AudioClip> whimperClips = new();
-
-    [Header("Audio Wave Settings")]
-    [SerializeField] private int itemFoundBarkWaves = 3;
-    [SerializeField] private int bearWarningBarkWaves = 2;
-    [SerializeField] private int whimperWaves = 2;
+    [SerializeField] private int barkWaves = 3;
 
     [SerializeField] private float waveIntervalMin = 0.25f;
     [SerializeField] private float waveIntervalMax = 0.45f;
     [SerializeField] private float pitchMin = 0.95f;
     [SerializeField] private float pitchMax = 1.1f;
 
+    // ================= COMPONENTS =================
+
     private NavMeshAgent agent;
     private Animator animator;
     private AudioSource audioSource;
 
-    private Transform player;
-    private Transform bear;
+    // ================= STATE =================
 
-    private Coroutine wanderCoroutine;
-    private Coroutine audioWaveCoroutine;
-
-    private GameObject currentItem;
-    private Vector3 currentItemPos;
-    private float timeAtItem;
-
-    private Dictionary<GameObject, float> shownItems = new();
-    private float lastBearWarningTime = -999f;
-
-    private FoxState state = FoxState.WanderNearPlayer;
+    private Queue<Transform> itemQueue;
+    private Transform currentTarget;
 
     private enum FoxState
     {
-        WanderNearPlayer,
-        InvestigatingItem,
-        ShowingItem,
-        FleeingFromBear,
-        GuidingToItem
+        GuidingToItem,
+        GuidingToCabin,
+        Idle
     }
+
+    private FoxState state = FoxState.Idle;
+    private Coroutine audioCoroutine;
+
+    // ================= UNITY =================
 
     private void Awake()
     {
@@ -76,316 +66,163 @@ public class FoxHelperController : MonoBehaviour, ISaveable
         animator = GetComponent<Animator>();
         audioSource = GetComponent<AudioSource>();
 
-        player = GameObject.FindWithTag("Player")?.transform;
-        bear = GameObject.FindWithTag("Enemy")?.transform;
+        agent.stoppingDistance = 0.2f;
+        agent.updateRotation = false;
     }
 
     private void OnEnable()
     {
-        EventManager.Subscribe(EventManager.ON_FOX_HINT_START, OnHintStart);
-        EventManager.Subscribe(EventManager.ON_FOX_HINT_END, OnHintEnd);
         EventManager.Subscribe(EventManager.ON_ITEM_COLLECTED, OnItemCollected);
     }
 
     private void OnDisable()
     {
-        EventManager.Unsubscribe(EventManager.ON_FOX_HINT_START, OnHintStart);
-        EventManager.Unsubscribe(EventManager.ON_FOX_HINT_END, OnHintEnd);
         EventManager.Unsubscribe(EventManager.ON_ITEM_COLLECTED, OnItemCollected);
     }
 
     private void Start()
     {
-        StartWandering();
+        agent.speed = followSpeed;
+        BuildItemQueue();
+        AssignNextItem();
     }
 
     private void Update()
     {
-        if (!player) return;
-
+        agent.speed = followSpeed; // allows runtime tuning
         animator.SetFloat("Speed", agent.velocity.magnitude);
 
-        CheckBear();
-        CleanShownItems();
-
-        switch (state)
-        {
-            case FoxState.WanderNearPlayer: WanderUpdate(); break;
-            case FoxState.InvestigatingItem: InvestigatingUpdate(); break;
-            case FoxState.ShowingItem: ShowingItemUpdate(); break;
-            case FoxState.FleeingFromBear: FleeingUpdate(); break;
-            case FoxState.GuidingToItem: GuidingUpdate(); break;
-        }
-    }
-
-    // ================= BEAR =================
-
-    private void CheckBear()
-    {
-        if (!bear) return;
-
-        float distPlayer = Vector3.Distance(player.position, bear.position);
-        float distFox = Vector3.Distance(transform.position, bear.position);
-
-        if (distPlayer <= bearDangerRadius)
-        {
-            if (state != FoxState.FleeingFromBear)
-                StartFleeing();
-        }
-        else if (distFox <= bearDetectionRadius || distPlayer <= bearDetectionRadius)
-        {
-            if (Time.time - lastBearWarningTime >= bearWarningCooldown)
-            {
-                PlaySoundWaves(bearWarningBarks, bearWarningBarkWaves);
-                animator.SetTrigger("Bark");
-                lastBearWarningTime = Time.time;
-            }
-        }
-    }
-
-    private void StartFleeing()
-    {
-        StopWander();
-        state = FoxState.FleeingFromBear;
-
-        agent.speed *= 1.3f;
-        agent.stoppingDistance = 2f;
-
-        PlaySoundWaves(whimperClips, whimperWaves);
-        animator.SetTrigger("Fear");
-    }
-
-    private void FleeingUpdate()
-    {
-        agent.SetDestination(player.position);
-
-        if (Vector3.Distance(player.position, bear.position) > bearDangerRadius + 5f)
-        {
-            agent.speed /= 1.3f;
-            StartWandering();
-        }
-    }
-
-    // ================= WANDER =================
-
-    private void StartWandering()
-    {
-        state = FoxState.WanderNearPlayer;
-        agent.speed = 3.5f;
-        agent.stoppingDistance = 0.5f;
-
-        StopWander();
-        wanderCoroutine = StartCoroutine(WanderRoutine());
-    }
-
-    private IEnumerator WanderRoutine()
-    {
-        while (state == FoxState.WanderNearPlayer)
-        {
-            agent.SetDestination(RandomNavSphere(player.position, wanderRadius));
-            yield return new WaitForSeconds(wanderInterval);
-        }
-    }
-
-    private void StopWander()
-    {
-        if (wanderCoroutine != null)
-            StopCoroutine(wanderCoroutine);
-    }
-
-    private void WanderUpdate()
-    {
-        GameObject item = FindNearestCollectible();
-        if (item) StartInvestigating(item);
-    }
-
-    // ================= ITEM =================
-
-    private GameObject FindNearestCollectible()
-    {
-        GameObject[] items = GameObject.FindGameObjectsWithTag("Collectible");
-        float best = itemDetectionRadius;
-        GameObject result = null;
-
-        foreach (var item in items)
-        {
-            if (shownItems.ContainsKey(item) &&
-                Time.time - shownItems[item] < itemMemoryCooldown)
-                continue;
-
-            float d = Vector3.Distance(transform.position, item.transform.position);
-            if (d < best)
-            {
-                best = d;
-                result = item;
-            }
-        }
-        return result;
-    }
-
-    private void StartInvestigating(GameObject item)
-    {
-        StopWander();
-        state = FoxState.InvestigatingItem;
-
-        currentItem = item;
-        currentItemPos = item.transform.position;
-
-        agent.speed = 4.5f;
-        agent.stoppingDistance = itemStoppingDistance;
-        agent.SetDestination(currentItemPos);
-    }
-
-    private void InvestigatingUpdate()
-    {
-        if (!currentItem)
-        {
-            StartWandering();
+        if (state == FoxState.Idle || currentTarget == null)
             return;
-        }
 
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
-            ArriveAtItem();
-
-        if (Vector3.Distance(transform.position, player.position) > playerAbandonDistance)
-            StartWandering();
-    }
-
-    private void ArriveAtItem()
-    {
-        state = FoxState.ShowingItem;
-        timeAtItem = 0f;
-
-        PlaySoundWaves(itemFoundBarks, itemFoundBarkWaves);
-        animator.SetTrigger("FoundItem");
-
-        HighlightItem(currentItem);
-    }
-
-    private void ShowingItemUpdate()
-    {
-        if (!currentItem)
-        {
-            StartWandering();
-            return;
-        }
-
-        timeAtItem += Time.deltaTime;
-
-        if (Vector3.Distance(player.position, currentItemPos) <= playerItemProximity ||
-            timeAtItem >= itemShowTimeout)
-        {
-            MarkShown(currentItem);
-            StartWandering();
-        }
-    }
-
-    private void MarkShown(GameObject item)
-    {
-        shownItems[item] = Time.time;
-        UnhighlightItem(item);
-    }
-
-    private void CleanShownItems()
-    {
-        List<GameObject> toRemove = new();
-
-        foreach (var kv in shownItems)
-            if (!kv.Key || Time.time - kv.Value > itemMemoryCooldown)
-                toRemove.Add(kv.Key);
-
-        foreach (var item in toRemove)
-            shownItems.Remove(item);
+        UpdateGuidingPosition();
+        UpdateRotation();
+        CheckArrival();
     }
 
     // ================= GUIDING =================
 
-    private void GuidingUpdate()
+    private void UpdateGuidingPosition()
     {
-        if (agent.pathPending) return;
+        Vector3 direction = (currentTarget.position - player.position).normalized;
+        Vector3 desiredPos = player.position + direction * guidingRadius;
 
-        if (agent.remainingDistance <= agent.stoppingDistance)
+        if (NavMesh.SamplePosition(desiredPos, out NavMeshHit hit, 1.5f, NavMesh.AllAreas))
         {
-            agent.ResetPath();
-            animator.SetBool("IsGuiding", true);
-        }
-
-        if (Vector3.Distance(transform.position, player.position) > playerAbandonDistance)
-        {
-            animator.SetBool("IsGuiding", false);
-            StartWandering();
+            agent.SetDestination(hit.position);
         }
     }
 
-    // ================= AUDIO CORE =================
-
-    private void PlaySoundWaves(List<AudioClip> clips, int waves)
+    private void UpdateRotation()
     {
-        if (clips == null || clips.Count == 0 || waves <= 0)
+        Vector3 lookDir = agent.velocity;
+        lookDir.y = 0f;
+
+        if (lookDir.sqrMagnitude < 0.01f)
             return;
 
-        if (audioWaveCoroutine != null)
-            StopCoroutine(audioWaveCoroutine);
-
-        audioWaveCoroutine = StartCoroutine(SoundWaveRoutine(clips, waves));
+        Quaternion targetRot = Quaternion.LookRotation(lookDir);
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            targetRot,
+            Time.deltaTime * rotationSpeed
+        );
     }
 
-    private IEnumerator SoundWaveRoutine(List<AudioClip> clips, int waves)
+    private void CheckArrival()
     {
-        for (int i = 0; i < waves; i++)
-        {
-            AudioClip clip = clips[Random.Range(0, clips.Count)];
-            audioSource.pitch = Random.Range(pitchMin, pitchMax);
-            audioSource.PlayOneShot(clip);
+        float distanceToTarget = Vector3.Distance(player.position, currentTarget.position);
 
-            yield return new WaitForSeconds(Random.Range(waveIntervalMin, waveIntervalMax));
+        if (state == FoxState.GuidingToItem && distanceToTarget <= reachedTargetDistance)
+        {
+            // Waiting for item collection event
+            animator.SetBool("IsGuiding", false);
+        }
+        else if (state == FoxState.GuidingToCabin && distanceToTarget <= reachedCabinDistance)
+        {
+            OnReachedCabin();
+        }
+        else
+        {
+            animator.SetBool("IsGuiding", true);
+        }
+    }
+
+    // ================= FLOW =================
+
+    private void BuildItemQueue()
+    {
+        List<Transform> temp = new(itemTargets);
+
+        for (int i = 0; i < temp.Count; i++)
+        {
+            int r = Random.Range(i, temp.Count);
+            (temp[i], temp[r]) = (temp[r], temp[i]);
         }
 
-        audioSource.pitch = 1f;
+        itemQueue = new Queue<Transform>(temp);
+    }
+
+    private void AssignNextItem()
+    {
+        if (itemQueue.Count == 0)
+        {
+            state = FoxState.Idle;
+            currentTarget = null;
+            return;
+        }
+
+        currentTarget = itemQueue.Dequeue();
+        state = FoxState.GuidingToItem;
+
+        PlayBarks();
+        animator.SetTrigger("FoundItem");
+    }
+
+    private void GuideToCabin()
+    {
+        currentTarget = cabin;
+        state = FoxState.GuidingToCabin;
+    }
+
+    private void OnReachedCabin()
+    {
+        AssignNextItem();
     }
 
     // ================= EVENTS =================
 
-    private void OnHintStart(object[] data)
+    private void OnItemCollected(object[] _)
     {
-        if (data.Length > 0 && data[0] is Vector3 pos)
+        if (state == FoxState.GuidingToItem)
         {
-            StopWander();
-            state = FoxState.GuidingToItem;
-            agent.stoppingDistance = itemStoppingDistance;
-            agent.SetDestination(pos);
+            GuideToCabin();
         }
     }
 
-    private void OnHintEnd(object[] data)
+    // ================= AUDIO =================
+
+    private void PlayBarks()
     {
-        animator.SetBool("IsGuiding", false);
-        StartWandering();
+        if (itemFoundBarks.Count == 0)
+            return;
+
+        if (audioCoroutine != null)
+            StopCoroutine(audioCoroutine);
+
+        audioCoroutine = StartCoroutine(BarkRoutine());
     }
 
-    private void OnItemCollected(object[] data)
+    private IEnumerator BarkRoutine()
     {
-        if (data.Length > 0 && data[0] is GameObject item && item == currentItem)
-            StartWandering();
-    }
+        for (int i = 0; i < barkWaves; i++)
+        {
+            audioSource.pitch = Random.Range(pitchMin, pitchMax);
+            audioSource.PlayOneShot(itemFoundBarks[Random.Range(0, itemFoundBarks.Count)]);
+            yield return new WaitForSeconds(Random.Range(waveIntervalMin, waveIntervalMax));
+        }
 
-    // ================= UTIL =================
-
-    private static Vector3 RandomNavSphere(Vector3 origin, float dist)
-    {
-        Vector3 rand = Random.insideUnitSphere * dist + origin;
-        NavMesh.SamplePosition(rand, out NavMeshHit hit, dist, NavMesh.AllAreas);
-        return hit.position;
-    }
-
-    private void HighlightItem(GameObject item)
-    {
-        EventManager.TriggerEvent("ON_FOX_MARKED_ITEM", item);
-    }
-
-    private void UnhighlightItem(GameObject item)
-    {
-        EventManager.TriggerEvent("ON_FOX_UNMARKED_ITEM", item);
+        audioSource.pitch = 1f;
     }
 
     // ================= SAVE =================
@@ -398,6 +235,7 @@ public class FoxHelperController : MonoBehaviour, ISaveable
     public void LoadData(GameData data)
     {
         agent.Warp(data.foxPosition);
-        StartWandering();
+        BuildItemQueue();
+        AssignNextItem();
     }
 }
