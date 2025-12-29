@@ -54,12 +54,5 @@ namespace Game.UI
             if (target != null) target.gameObject.SetActive(active);
             else Debug.LogWarning($"Menu '{menuName}' not found under Menus_Container.");
         }
-
-        public void ShowHUDWidget(string widgetPath, bool active)
-        {
-            // widgetPath example: "HUD_Container/HealthBar"
-            var t = hudContainer.transform.Find(widgetPath.Replace("HUD_Container/", ""));
-            if (t != null) t.gameObject.SetActive(active);
-        }
     }
 }

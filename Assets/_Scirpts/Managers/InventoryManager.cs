@@ -103,9 +103,14 @@ public class InventoryManager : MonoBehaviour, ISaveable
         {
             Debug.Log("[InventoryManager] Deposited after completion. Clearing carried item.");
             currentItem = null;
+
             ShowFeedback("Delivered!");
+            CancelInvoke(nameof(ShowMemoryRestoredMessage));
+            Invoke(nameof(ShowMemoryRestoredMessage), 1.6f);
+
             return true;
         }
+
 
         Debug.Log($"[InventoryManager] Deposited {currentItem.itemName}");
 
@@ -133,7 +138,12 @@ public class InventoryManager : MonoBehaviour, ISaveable
         else
         {
             ShowFeedback("Delivered!");
+
+            // After feedback clears, show narrative message
+            CancelInvoke(nameof(ShowMemoryRestoredMessage));
+            Invoke(nameof(ShowMemoryRestoredMessage), 1.6f);
         }
+
 
         return true;
     }
@@ -191,6 +201,11 @@ public class InventoryManager : MonoBehaviour, ISaveable
     private void ClearFeedback()
     {
         if (feedbackText != null) feedbackText.text = "";
+    }
+    
+    private void ShowMemoryRestoredMessage()
+    {
+        ShowFeedback("You have restored a part of your memories");
     }
 
     #endregion
