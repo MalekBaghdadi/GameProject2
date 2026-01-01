@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using TMPro;
@@ -19,8 +20,13 @@ public class InventoryManager : MonoBehaviour, ISaveable
     public ItemDataSO currentItem;
 
     [Header("UI")]
-    [SerializeField] private TMP_Text questText;      // assign in inspector (TextMeshPro)
-    [SerializeField] private TMP_Text feedbackText;   // optional small popup text
+    [SerializeField] private TMP_Text questText;      
+    [SerializeField] private TMP_Text feedbackText;   
+
+    [Header("Quest Text Animation")]
+    [SerializeField] private Color questHighlightColor = Color.green;
+    [SerializeField] private float highlightDuration = 1.2f;
+    [SerializeField] private float morphFadeDuration = 0.35f;
 
     [Header("Audio")]
     [Tooltip("Optional: sound played when an item is deposited to the cabin.")]
@@ -34,6 +40,9 @@ public class InventoryManager : MonoBehaviour, ISaveable
     private int deliveredCount = 0;
     private bool questCompleted = false;
 
+    // Quest text animation control
+    private Coroutine questTextRoutine;
+
     private void Start()
     {
         UpdateQuestText();
@@ -41,16 +50,10 @@ public class InventoryManager : MonoBehaviour, ISaveable
 
     #region Public API
 
-    /// <summary>
-    /// Public read-only accessors so other systems can query state.
-    /// </summary>
     public int DeliveredCount => deliveredCount;
     public int TotalItemsNeeded => totalItemsNeeded;
     public bool IsQuestCompleted => questCompleted;
 
-    /// <summary>
-    /// Try to pick up an item. Returns true if picked up.
-    /// </summary>
     public bool TryCollectItem(ItemDataSO item)
     {
         if (item == null)
@@ -59,77 +62,57 @@ public class InventoryManager : MonoBehaviour, ISaveable
             return false;
         }
 
-        // If already carrying something, reject
         if (currentItem != null)
         {
             ShowFeedback("Your hands are full!");
-            Debug.Log("[InventoryManager] Cannot pick up. Hands are full!");
             return false;
         }
 
-        // Pick the item up
+        // Pick up item
         currentItem = item;
         Debug.Log($"[InventoryManager] Picked up {item.itemName}");
 
-        // When an item is collected, show "Get the item to the cabin"
-        SetQuestText_GetToCabin();
-
-        // Play item collect SFX via EventManager (AudioManager should handle actual playback)
-        if (item.collectSound != null)
+        // QUEST TEXT: green flash + morph to "Get to cabin"
+        if (questText != null)
         {
-            EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, item.collectSound);
+            questTextRoutine = StartCoroutine(
+                QuestTextPickupTransition("Get the item to the cabin")
+            );
         }
 
-        // Notify other systems that an item was collected (payload: ItemDataSO)
+        if (item.collectSound != null)
+            EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, item.collectSound);
+
         EventManager.TriggerEvent(EventManager.ON_ITEM_COLLECTED, item);
 
         return true;
     }
 
-    /// <summary>
-    /// Deposit/deliver the carried item to the cabin. Returns true if deposit succeeded.
-    /// </summary>
     public bool DepositItem()
     {
         if (currentItem == null)
         {
             ShowFeedback("You are carrying nothing.");
-            Debug.Log("[InventoryManager] Deposit failed: no current item.");
             return false;
         }
 
-        // If already completed, still clear carried item and give feedback but don't change counters
         if (questCompleted)
         {
-            Debug.Log("[InventoryManager] Deposited after completion. Clearing carried item.");
             currentItem = null;
-
             ShowFeedback("Delivered!");
             CancelInvoke(nameof(ShowMemoryRestoredMessage));
             Invoke(nameof(ShowMemoryRestoredMessage), 1.6f);
-
             return true;
         }
 
-
-        Debug.Log($"[InventoryManager] Deposited {currentItem.itemName}");
-
-        // Clear the carried item
         currentItem = null;
-
-        // Increment delivered counter (but clamp to totalItemsNeeded)
         deliveredCount = Mathf.Min(totalItemsNeeded, deliveredCount + 1);
 
-        // Update quest UI
         UpdateQuestText();
 
-        // Play deposit SFX via EventManager
         if (depositSound != null)
-        {
             EventManager.TriggerEvent(EventManager.ON_PLAY_SFX, depositSound);
-        }
 
-        // Optional: check completion
         if (deliveredCount >= totalItemsNeeded && !questCompleted)
         {
             questCompleted = true;
@@ -138,12 +121,9 @@ public class InventoryManager : MonoBehaviour, ISaveable
         else
         {
             ShowFeedback("Delivered!");
-
-            // After feedback clears, show narrative message
             CancelInvoke(nameof(ShowMemoryRestoredMessage));
             Invoke(nameof(ShowMemoryRestoredMessage), 1.6f);
         }
-
 
         return true;
     }
@@ -156,53 +136,85 @@ public class InventoryManager : MonoBehaviour, ISaveable
     {
         if (questText == null) return;
 
-        // If completed
         if (deliveredCount >= totalItemsNeeded)
         {
             questText.text = $"Quest Complete ({deliveredCount}/{totalItemsNeeded})";
             return;
         }
 
-        // Show "Find the Item (X/total)" where X is deliveredCount + 1 (next target number)
         int nextIndex = Mathf.Clamp(deliveredCount + 1, 1, totalItemsNeeded);
         questText.text = $"Find the Item ({nextIndex}/{totalItemsNeeded})";
     }
 
-    private void SetQuestText_GetToCabin()
+    private IEnumerator QuestTextPickupTransition(string nextText)
     {
-        if (questText != null)
-            questText.text = "Get the item to the cabin";
+        if (questTextRoutine != null)
+            StopCoroutine(questTextRoutine);
+
+        questTextRoutine = null;
+
+        Color originalColor = questText.color;
+        questText.alpha = 1f;
+
+        // 1. Green flash
+        questText.color = questHighlightColor;
+        yield return new WaitForSeconds(highlightDuration);
+
+        // 2. Fade out
+        float t = 0f;
+        while (t < morphFadeDuration)
+        {
+            t += Time.deltaTime;
+            questText.alpha = Mathf.Lerp(1f, 0f, t / morphFadeDuration);
+            yield return null;
+        }
+
+        // 3. Swap text
+        questText.text = nextText;
+
+        // 4. Fade in
+        t = 0f;
+        while (t < morphFadeDuration)
+        {
+            t += Time.deltaTime;
+            questText.alpha = Mathf.Lerp(0f, 1f, t / morphFadeDuration);
+            yield return null;
+        }
+
+        // 5. Restore color
+        questText.color = originalColor;
+        questText.alpha = 1f;
     }
 
     private void OnQuestCompleted()
     {
-        Debug.Log("[InventoryManager] All items delivered. Quest complete!");
         if (questText != null)
             questText.text = "All items delivered!";
 
-        // Trigger the global game-over / level-complete event via EventManager
-        EventManager.TriggerEvent(EventManager.ON_GAME_OVER, deliveredCount, totalItemsNeeded);
+        EventManager.TriggerEvent(
+            EventManager.ON_GAME_OVER,
+            deliveredCount,
+            totalItemsNeeded
+        );
 
-        // Invoke inspector hook for VFX/SFX
         onQuestCompleted?.Invoke();
     }
 
     private void ShowFeedback(string message)
     {
-        if (feedbackText != null)
-        {
-            feedbackText.text = message;
-            // clear after short time
-            CancelInvoke(nameof(ClearFeedback));
-            Invoke(nameof(ClearFeedback), 1.5f);
-        }
+        if (feedbackText == null) return;
+
+        feedbackText.text = message;
+        CancelInvoke(nameof(ClearFeedback));
+        Invoke(nameof(ClearFeedback), 1.5f);
     }
 
     private void ClearFeedback()
     {
-        if (feedbackText != null) feedbackText.text = "";
+        if (feedbackText != null)
+            feedbackText.text = "";
     }
-    
+
     private void ShowMemoryRestoredMessage()
     {
         ShowFeedback("You have restored a part of your memories");
@@ -210,50 +222,30 @@ public class InventoryManager : MonoBehaviour, ISaveable
 
     #endregion
 
-    #region Saving / Loading (ISaveable)
+    #region Saving / Loading
 
     public void SaveData(ref GameData data)
     {
-        data.itemsDelivered = this.deliveredCount;
-
-        if (this.currentItem != null)
-        {
-            data.currentHeldItemID = this.currentItem.itemID;
-        }
-        else
-        {
-            data.currentHeldItemID = "";
-        }
+        data.itemsDelivered = deliveredCount;
+        data.currentHeldItemID = currentItem != null ? currentItem.itemID : "";
     }
 
     public void LoadData(GameData data)
     {
-        this.deliveredCount = data.itemsDelivered;
-        UpdateQuestText(); // Refresh UI
+        deliveredCount = data.itemsDelivered;
+        questCompleted = deliveredCount >= totalItemsNeeded;
 
-        // If loading shows we've already completed, set flag so completion doesn't re-fire later
-        if (this.deliveredCount >= totalItemsNeeded)
-            questCompleted = true;
-        else
-            questCompleted = false;
+        UpdateQuestText();
 
-        // Restore held item (if any)
-        if (!string.IsNullOrEmpty(data.currentHeldItemID) && PersistenceManager.Instance != null)
+        if (!string.IsNullOrEmpty(data.currentHeldItemID) &&
+            PersistenceManager.Instance != null)
         {
-            ItemDataSO item = PersistenceManager.Instance.GetItemByID(data.currentHeldItemID);
-            if (item != null)
-            {
-                this.currentItem = item;
-                Debug.Log($"[InventoryManager] Restored held item: {item.itemName}");
-            }
-            else
-            {
-                this.currentItem = null;
-            }
+            currentItem =
+                PersistenceManager.Instance.GetItemByID(data.currentHeldItemID);
         }
         else
         {
-            this.currentItem = null;
+            currentItem = null;
         }
     }
 
