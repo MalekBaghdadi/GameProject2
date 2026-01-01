@@ -15,10 +15,10 @@ MonoBehaviour:
   sightRadius: 15
   viewAngle: 110
   audioRadius: 18
-  wanderSpeed: 3.5
-  chaseSpeed: 5
+  wanderSpeed: 5
+  chaseSpeed: 6.5
   attackRange: 2.5
-  attackCooldown: 1.2
+  attackCooldown: 5
   damage: 50
   interestIncreaseRate: 0.5
   interestDecayRate: 0.3
