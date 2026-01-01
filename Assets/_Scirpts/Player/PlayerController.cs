@@ -60,6 +60,7 @@ public class PlayerController : MonoBehaviour, ISaveable
     [SerializeField] private bool resumeCursorVisible = false;
     
     public Vector3 moveDirection;
+    public HurtEffect hurtUI;
     
     public bool IsActuallySprinting
     {
@@ -324,6 +325,7 @@ public class PlayerController : MonoBehaviour, ISaveable
         }
 
         TakeDamage(damage);
+        hurtUI.TriggerHurt();
     }
     
     /// <summary>
@@ -350,13 +352,6 @@ public class PlayerController : MonoBehaviour, ISaveable
         acceptInput = true;
 
         // Restore cursor lock/visibility for gameplay
-        Cursor.lockState = resumeLockMode;
-        Cursor.visible = resumeCursorVisible;
-    }
-
-    public void EnableInput()
-    {
-        acceptInput = true;
         Cursor.lockState = resumeLockMode;
         Cursor.visible = resumeCursorVisible;
     }
